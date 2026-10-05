@@ -1,0 +1,168 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Control de Recepción de Carnicería · Campo Verde</title><meta name="theme-color" content="#1d5a38">
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj48cmVjdCB4PSI2IiB5PSI2IiB3aWR0aD0iMTA4IiBoZWlnaHQ9IjEwOCIgcng9IjI4IiBmaWxsPSIjZmZmIiBzdHJva2U9IiMxNDMwMWYiIHN0cm9rZS13aWR0aD0iOCIvPjx0ZXh0IHg9IjYwIiB5PSI1NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIEJsYWNrLEFyaWFsIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjI0IiBmaWxsPSIjMTQzMDFmIj5DQU1QTzwvdGV4dD48dGV4dCB4PSI2MCIgeT0iODQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCBCbGFjayxBcmlhbCIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzE0MzAxZiI+VkVSREU8L3RleHQ+PC9zdmc+Cg=="><style>
+:root{--g:#1d5a38;--gd:#14301f;--bg:#f1f6f2;--ln:#dfe8e1;--ok:#3d9a5f;--dv:#ebb433;--nc:#d9423e;--tx:#17251c;--mu:#66756b}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+header{background:var(--g);color:#fff;padding:16px 20px 52px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+header img{height:56px;background:#fff;border-radius:14px;padding:3px}header h1{margin:0;font-size:22px}header small{opacity:.8;letter-spacing:.1em;font-weight:600}
+.sp{flex:1}.pill{background:rgba(255,255,255,.15);padding:5px 12px;border-radius:99px;font-size:13px;font-weight:600}
+button{font:inherit;cursor:pointer}.btn{background:var(--g);color:#fff;border:0;border-radius:10px;padding:11px 18px;font-weight:600}.btn.o{background:#fff;color:var(--g);border:1px solid var(--g)}.btn.s{padding:6px 12px;font-size:13px}
+main{max-width:1200px;margin:-36px auto 30px;padding:0 14px;display:grid;gap:14px}
+.card{background:#fff;border:1px solid var(--ln);border-radius:16px;padding:20px}.card h2{margin:0 0 14px;font-size:19px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}.two{grid-template-columns:2fr 1fr}
+@media(max-width:800px){.two{grid-template-columns:1fr}}
+label{display:block;font-size:13px;font-weight:600;margin-bottom:5px}input,select{width:100%;padding:11px;border:1px solid #cfd9d2;border-radius:10px;font:inherit;background:#fff}
+input:focus,select:focus{outline:2px solid var(--g)}.hint{font-size:12px;color:var(--mu);margin-top:4px}
+.kpi{border-left:5px solid var(--ok);padding:14px 16px}.kpi b{font-size:30px;display:block}.kpi span{font-size:13px;color:var(--mu)}.kpi.y{border-color:var(--dv)}.kpi.r{border-color:var(--nc)}.kpi.b{border-color:#6c8f78}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px;white-space:nowrap}th{background:#eaf2ec;text-align:left;font-size:12px;letter-spacing:.04em;color:var(--mu);text-transform:uppercase}th,td{padding:10px 12px;border-bottom:1px solid var(--ln)}
+.tag{padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700}.ok{background:#dff3e6;color:#1d6b3a}.dev{background:#fdf0c9;color:#8a6410}.nc{background:#fbdcdb;color:#a1241f}.no{background:#e8efe9;color:#2f6a46}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.row>div{flex:1;min-width:140px}.leg{display:flex;justify-content:space-between;background:#f1f6f2;border-radius:10px;padding:9px 12px;margin:6px 0}
+.dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:8px}.auto div{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--ln);font-size:14px}
+.login{max-width:380px;margin:-30px auto 0}.err{color:var(--nc);font-size:13px;margin-top:8px}.off{background:#fdf0c9;color:#8a6410;padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600}
+</style></head>
+<body><div id="app"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// Completar con los datos de tu proyecto Supabase (ver README). Vacío = modo solo local.
+const CONFIG = {
+  SUPABASE_URL: "",       // ej: https://xxxx.supabase.co
+  SUPABASE_KEY: "",       // anon public key
+  USERS: {
+    independencia: { n: "Independencia", p: "INDCV", role: "suc" },
+    paunero:       { n: "Paunero",       p: "PAUCV", role: "suc" },
+    arenales:      { n: "Arenales",      p: "ARECV", role: "suc" },
+    sanmartin:     { n: "San Martín",    p: "SMCV",  role: "suc" },
+    calidad:       { n: "Calidad",       p: "CALIDADCV", role: "cal" }
+  }
+};
+</script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const norm=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f\s]/g,'');
+const mem={};const st=t=>{try{const x=window[t];x.setItem('_t','1');x.removeItem('_t');return x}catch(e){return{getItem:k=>mem[t+k]??null,setItem:(k,v)=>{mem[t+k]=String(v)},removeItem:k=>{delete mem[t+k]},clear:()=>{}}}};
+const LSt=st('localStorage'),SSt=st('sessionStorage');
+const LS=(k,v)=>{try{return v===undefined?JSON.parse(LSt.getItem(k)||'null'):LSt.setItem(k,JSON.stringify(v))}catch(e){return v===undefined?null:0}};
+const today=()=>new Date().toLocaleDateString('en-CA');
+const fd=d=>d?d.split('-').reverse().join('/'):'-';
+const n1=v=>(+v).toLocaleString('es-AR',{maximumFractionDigits:1});
+const B=CONFIG.SUPABASE_URL+'/rest/v1',HD={apikey:CONFIG.SUPABASE_KEY,Authorization:'Bearer '+CONFIG.SUPABASE_KEY,'Content-Type':'application/json'};
+const PROD=['Media Res','Parrillero','Cuarto','Paleta','Bife'];
+let user=JSON.parse(SSt.getItem('u')||'null'),resp=SSt.getItem('r')||'',err='',flt={from:'',to:'',suc:'',grp:'mes'};
+
+function calc(r){const d=r.f_faena?Math.round((new Date(r.f_recepcion)-new Date(r.f_faena))/864e5):null;
+ const t=+r.temp,dif=r.peso_remito>0?(r.peso_real-r.peso_remito)/r.peso_remito*100:0;
+ return{...r,dias:d,est:t<=7?'ok':t<=10?'dev':'nc',dif,dp:Math.abs(dif)>3,d4:d!==null&&d>4}}
+const ck=()=>'c_'+user.n;
+function all(){const m=new Map();[...(LS(ck())||[]),...(LS('q')||[])].forEach(r=>m.set(r.id,r));
+ let l=[...m.values()];if(user.role==='suc')l=l.filter(r=>r.sucursal===user.n);
+ return l.map(calc).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))}
+async function sync(){if(!CONFIG.SUPABASE_URL||!navigator.onLine||!user){render();return}
+ try{const q=LS('q')||[];
+  if(q.length){const r=await fetch(B+'/recepciones?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q)});if(!r.ok)throw 0;LS('q',[])}
+  const f=user.role==='suc'?'&sucursal=eq.'+encodeURIComponent(user.n):'';
+  const g=await fetch(B+'/recepciones?select=*&order=created_at.desc&limit=5000'+f,{headers:HD});if(g.ok)LS(ck(),await g.json())}catch(e){}
+ render()}
+addEventListener('online',sync);setInterval(()=>user&&sync(),60000);
+
+function head(sub){const pend=(LS('q')||[]).length;
+ return `<header><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj48cmVjdCB4PSI2IiB5PSI2IiB3aWR0aD0iMTA4IiBoZWlnaHQ9IjEwOCIgcng9IjI4IiBmaWxsPSIjZmZmIiBzdHJva2U9IiMxNDMwMWYiIHN0cm9rZS13aWR0aD0iOCIvPjx0ZXh0IHg9IjYwIiB5PSI1NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIEJsYWNrLEFyaWFsIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjI0IiBmaWxsPSIjMTQzMDFmIj5DQU1QTzwvdGV4dD48dGV4dCB4PSI2MCIgeT0iODQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCBCbGFjayxBcmlhbCIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzE0MzAxZiI+VkVSREU8L3RleHQ+PC9zdmc+Cg==" alt="Campo Verde"><div><small>CAMPO VERDE</small><h1>Control de Recepción de Carnicería</h1><div style="opacity:.85;font-size:14px;margin-top:4px">${sub}</div></div><span class="sp"></span>
+ ${user?`${!navigator.onLine?'<span class="off">Sin conexión</span>':''}${pend?`<span class="off">${pend} pendiente(s) de sincronizar</span>`:''}<span class="pill">CAR-0003 · Rev 2.0</span><button class="btn o s" id="out">Salir</button>`:''}</header>`}
+
+function render(){const a=$('#app');
+ if(!user){a.innerHTML=head('Ingreso')+`<main><form class="card login" id="lf"><h2>Ingresar</h2><label>Usuario</label><input id="lu" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Sucursal o Calidad"><br><br><label>Contraseña</label><input id="lp" type="password" autocapitalize="off" autocorrect="off"><div class="err">${err}</div><br><button class="btn" style="width:100%">Entrar</button></form></main>`;
+  $('#lf').onsubmit=e=>{e.preventDefault();const u=CONFIG.USERS[norm($('#lu').value)];
+   if(u&&u.p.toLowerCase()===$('#lp').value.trim().toLowerCase()){user=u;err='';SSt.setItem('u',JSON.stringify(u));sync()}else{err='Usuario o contraseña incorrectos';render()}};return}
+ a.innerHTML=user.role==='suc'?viewSuc():viewCal();
+ $('#out').onclick=()=>{['u','r'].forEach(k=>SSt.removeItem(k));user=null;resp='';render()};
+ user.role==='suc'?bindSuc():bindCal()}
+
+const tag=r=>`<span class="tag ${r.est}">${{ok:'Conforme',dev:'Desviación',nc:'No conforme'}[r.est]}</span>`;
+const yn=b=>`<span class="tag ${b?'nc':'no'}">${b?'SI':'NO'}</span>`;
+function rows(l,suc){return `<div class="tw"><table><tr><th>Producto</th><th>Recepción</th><th>Faena</th><th>Temp °C</th><th>Clasif.</th><th>Tipif.</th><th>Peso remito</th><th>Peso real</th><th>Dif %</th><th>Días</th><th>Desvío T</th><th>DP&gt;3%</th>${suc?'<th>Sucursal / Resp.</th>':'<th>Responsable</th>'}</tr>
+${l.map(r=>`<tr><td>${esc(r.producto)}</td><td>${fd(r.f_recepcion)}</td><td>${fd(r.f_faena)}</td><td>${n1(r.temp)}</td><td>${esc(r.clasif)}</td><td>${esc(r.tipif)}</td><td>${n1(r.peso_remito)}</td><td>${n1(r.peso_real)}</td><td>${n1(r.dif)}%</td><td>${r.dias===null?'-':`<span class="tag ${r.d4?'nc':'no'}">${r.dias}</span>`}</td><td>${tag(r)}</td><td>${yn(r.dp)}</td><td>${suc?esc(r.sucursal)+' · ':''}${esc(r.responsable)}</td></tr>`).join('')||'<tr><td colspan="13">Sin registros</td></tr>'}</table></div>`}
+
+function viewSuc(){const l=all(),h=l.filter(r=>r.f_recepcion===today());
+ return head(`${user.n} · Formulario de registro`)+`<main>
+ <div class="card"><label>Responsable de la carga *</label><input id="resp" value="${esc(resp)}" placeholder="Nombre y apellido"></div>
+ <div class="grid two"><form class="card" id="f"><h2>Nueva recepción</h2><div class="grid">
+ <div><label>Producto *</label><select id="prod">${PROD.map(p=>`<option>${p}</option>`).join('')}<option value="__o">Otro…</option></select><input id="otro" placeholder="Nombre del producto" style="display:none;margin-top:6px"></div>
+ <div><label>Fecha de recepción *</label><input type="date" id="fr" value="${today()}" required></div>
+ <div><label>Fecha de faena (opcional)</label><input type="date" id="ff"><div class="hint">Dejar vacío si no figura en la etiqueta</div></div>
+ <div><label>Temperatura (°C) *</label><input type="number" step="0.1" inputmode="decimal" id="t" placeholder="0,0" required><div class="hint">Ideal menor a 7 °C</div></div>
+ <div><label>Clasificación</label><select id="cl"><option>2D-VQ</option><option>2D-NT</option><option>SIN CLASIFICACIÓN</option></select></div>
+ <div><label>Tipificación (L/N°)</label><select id="ti"><option>C1</option><option>SIN TIPIFICACIÓN</option></select></div>
+ <div><label>Peso remito (Kg) *</label><input type="number" step="0.01" inputmode="decimal" id="pr" required></div>
+ <div><label>Peso real (Kg) *</label><input type="number" step="0.01" inputmode="decimal" id="pe" required></div></div>
+ <br><button class="btn">+ Guardar registro</button><div class="err" id="fe"></div></form>
+ <div class="card auto"><h2>Análisis automático</h2><div><span>Desvío T</span><b id="a1">-</b></div><div><span>Días desde faena</span><b id="a2">-</b></div><div><span>Diferencia de peso</span><b id="a3">-</b></div><div><span>Diferencia aceptada (3%)</span><b id="a4">-</b></div><div><span>DP &gt; 3%</span><b id="a5">-</b></div>
+ <div class="hint" style="margin-top:12px"><span class="dot" style="background:var(--ok)"></span>T ≤ 7 °C Conforme<br><span class="dot" style="background:var(--dv)"></span>7 &lt; T ≤ 10 °C Desviación<br><span class="dot" style="background:var(--nc)"></span>T &gt; 10 °C No conforme<br>Más de 4 días desde faena → No conformidad</div></div></div>
+ <div class="card"><h2>Hoy · ${user.n} <span class="pill" style="background:var(--g)">${h.length}</span></h2>${rows(h)}</div>
+ <div class="card"><h2>Registros previos · ${user.n} <small style="color:var(--mu);font-weight:400">${l.length} en total</small></h2>${rows(l)}</div></main>`}
+
+function bindSuc(){const p=$('#prod'),g=id=>$('#'+id).value;
+ p.onchange=()=>$('#otro').style.display=p.value==='__o'?'block':'none';
+ $('#resp').oninput=e=>{resp=e.target.value;SSt.setItem('r',resp)};
+ const live=()=>{const t=+g('t'),pr=+g('pr'),pe=+g('pe'),ff=g('ff'),fr=g('fr');
+  if(g('t')!==''){const d=Math.max(0,t-7);$('#a1').innerHTML=tag({est:t<=7?'ok':t<=10?'dev':'nc'})+' '+(t>7?'+'+n1(d)+' °C':'')}
+  if(ff&&fr){const d=Math.round((new Date(fr)-new Date(ff))/864e5);$('#a2').innerHTML=`<span class="tag ${d>4?'nc':'no'}">${d}</span>`}
+  if(pr>0&&g('pe')!==''){const df=pe-pr;$('#a3').textContent=n1(df)+' Kg ('+n1(df/pr*100)+'%)';$('#a4').textContent='±'+n1(pr*.03)+' Kg';$('#a5').innerHTML=yn(Math.abs(df/pr)>.03)}};
+ ['t','pr','pe','ff','fr'].forEach(i=>$('#'+i).oninput=live);
+ $('#f').onsubmit=e=>{e.preventDefault();resp=$('#resp').value.trim();const prod=p.value==='__o'?g('otro').trim():p.value;
+  if(!resp||!prod){$('#fe').textContent='Completá el responsable y el producto';return}
+  if(g('ff')&&g('ff')>g('fr')){$('#fe').textContent='La faena no puede ser posterior a la recepción';return}
+  const r={id:(crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const v=Math.random()*16|0;return(c=='x'?v:v&3|8).toString(16)})),sucursal:user.n,responsable:resp,producto:prod,f_recepcion:g('fr'),f_faena:g('ff')||null,temp:+g('t'),clasif:g('cl'),tipif:g('ti'),peso_remito:+g('pr'),peso_real:+g('pe'),created_at:new Date().toISOString()};
+  LS('q',[...(LS('q')||[]),r]);sync()}}
+
+// ---------- Calidad ----------
+function wk(d){const x=new Date(d+'T00:00');x.setDate(x.getDate()-((x.getDay()+6)%7));return x.toLocaleDateString('en-CA')}
+function filt(){return all().filter(r=>(!flt.from||r.f_recepcion>=flt.from)&&(!flt.to||r.f_recepcion<=flt.to)&&(!flt.suc||r.sucursal===flt.suc))}
+function stats(l){const c={ok:0,dev:0,nc:0};l.forEach(r=>c[r.est]++);const n=l.length||1,p=k=>c[k]/l.length*100||0;
+ const dp=l.filter(r=>r.dp).length,d4=l.filter(r=>r.d4).length,prod={};
+ l.forEach(r=>{const o=prod[r.producto]??={n:0,rem:0,real:0};o.n++;o.rem+=+r.peso_remito;o.real+=+r.peso_real});
+ const per={};l.forEach(r=>{const k=flt.grp==='sem'?'Sem. '+fd(wk(r.f_recepcion)):r.f_recepcion.slice(0,7).split('-').reverse().join('/');
+  const o=per[k+'|'+r.producto]??={k,prod:r.producto,n:0,rem:0,real:0};o.n++;o.rem+=+r.peso_remito;o.real+=+r.peso_real});
+ const span=l.length?(new Date(Math.max(...l.map(r=>new Date(r.f_recepcion))))-new Date(Math.min(...l.map(r=>new Date(r.f_recepcion)))))/6048e5+1:1;
+ return{c,p,dp,d4,prod,per:Object.values(per).sort((a,b)=>b.k.localeCompare(a.k)),avg:l.reduce((s,r)=>s+ +r.temp,0)/n,span:Math.max(1,Math.ceil(span))}}
+function donut(c){const t=c.ok+c.dev+c.nc||1,R=80,C=2*Math.PI*R;let o=0;
+ return `<svg viewBox="0 0 200 200" width="210">`+[[c.ok,'#3d9a5f'],[c.dev,'#ebb433'],[c.nc,'#d9423e']].map(([v,col])=>{const l=v/t*C,s=`<circle cx="100" cy="100" r="${R}" fill="none" stroke="${col}" stroke-width="34" stroke-dasharray="${l} ${C-l}" stroke-dashoffset="${-o}" transform="rotate(-90 100 100)"/>`;o+=l;return s}).join('')+`<text x="100" y="108" text-anchor="middle" font-size="26" font-weight="700" fill="#17251c">${c.ok+c.dev+c.nc}</text></svg>`}
+
+function viewCal(){const l=filt(),s=stats(l),f1=v=>n1(v)+'%';
+ return head('Perfil Calidad · Análisis de todas las sucursales')+`<main>
+ <div class="card"><div class="row"><div><label>Fecha de inicio</label><input type="date" id="fi" value="${flt.from}"></div><div><label>Fecha de fin</label><input type="date" id="fe" value="${flt.to}"></div>
+ <div><label>Sucursal</label><select id="fs"><option value="">Todas</option>${['Independencia','Paunero','Arenales','San Martín'].map(x=>`<option ${flt.suc===x?'selected':''}>${x}</option>`).join('')}</select></div>
+ <div style="flex:none"><button class="btn o s" id="pw">Esta semana</button> <button class="btn o s" id="pm">Este mes</button> <button class="btn o s" id="pc">Todo</button></div>
+ <div style="flex:none"><button class="btn" id="xl">⬇ Descargar Excel</button></div></div><div class="hint">${l.length} recepciones en el período</div></div>
+ <div class="grid"><div class="card kpi b"><span>Temperatura promedio</span><b>${n1(s.avg)} °C</b><span>Ideal ≤ 7 °C</span></div>
+ <div class="card kpi"><span>% Entrega óptima</span><b>${f1(s.p('ok'))}</b><span>Meta ≥ 60%</span></div>
+ <div class="card kpi y"><span>% Entrega desviación</span><b>${f1(s.p('dev'))}</b><span>Meta ≤ 35%</span></div>
+ <div class="card kpi r"><span>% No conforme</span><b>${f1(s.p('nc'))}</b><span>Meta ≤ 5%</span></div>
+ <div class="card kpi b"><span>% Desvío de peso &gt; 3%</span><b>${f1(s.dp/(l.length||1)*100)}</b><span>${s.dp} recepciones · ideal 0</span></div>
+ <div class="card kpi b"><span>Más de 4 días desde faena</span><b>${s.d4}</b><span>ideal 0</span></div></div>
+ <div class="grid two"><div class="card"><h2>Distribución de temperaturas</h2><div class="row" style="align-items:center;justify-content:center">${donut(s.c)}<div style="flex:1;min-width:200px">${[['ok','Conforme','--ok'],['dev','Desviación','--dv'],['nc','No conforme','--nc']].map(([k,n,c])=>`<div class="leg"><span><span class="dot" style="background:var(${c})"></span>${n}</span><b>${s.c[k]} · ${f1(s.p(k))}</b></div>`).join('')}</div></div></div>
+ <div class="card"><h2>Cantidad y kg por producto</h2><div class="tw"><table><tr><th>Producto</th><th>Cant.</th><th>Kg remito</th><th>Kg real</th><th>Prom. sem.</th></tr>${Object.entries(s.prod).map(([k,o])=>`<tr><td>${esc(k)}</td><td>${o.n}</td><td>${n1(o.rem)}</td><td>${n1(o.real)}</td><td>${n1(o.n/s.span)}</td></tr>`).join('')||'<tr><td colspan="5">Sin datos</td></tr>'}</table></div></div></div>
+ <div class="card"><h2>Resumen por período <select id="gp" style="width:auto;display:inline;margin-left:10px"><option value="mes" ${flt.grp==='mes'?'selected':''}>Mensual</option><option value="sem" ${flt.grp==='sem'?'selected':''}>Semanal</option></select></h2>
+ <div class="tw"><table><tr><th>Período</th><th>Producto</th><th>Cant.</th><th>Kg remito</th><th>Kg real</th></tr>${s.per.map(o=>`<tr><td>${o.k}</td><td>${esc(o.prod)}</td><td>${o.n}</td><td>${n1(o.rem)}</td><td>${n1(o.real)}</td></tr>`).join('')||'<tr><td colspan="5">Sin datos</td></tr>'}</table></div></div>
+ <div class="card"><h2>Registros del período <small style="color:var(--mu);font-weight:400">${l.length} en total</small></h2>${rows(l,1)}</div></main>`}
+
+function bindCal(){const set=(a,b)=>{flt.from=a;flt.to=b;render()};
+ $('#fi').onchange=e=>set(e.target.value,flt.to);$('#fe').onchange=e=>set(flt.from,e.target.value);
+ $('#fs').onchange=e=>{flt.suc=e.target.value;render()};$('#gp').onchange=e=>{flt.grp=e.target.value;render()};
+ $('#pw').onclick=()=>set(wk(today()),today());$('#pm').onclick=()=>set(today().slice(0,8)+'01',today());$('#pc').onclick=()=>set('','');
+ $('#xl').onclick=excel}
+
+function excel(){const l=filt(),s=stats(l),mes=flt.from?fd(flt.from)+' al '+fd(flt.to||today()):'Todos los períodos';
+ const H=['Producto','Fecha de recepción','Fecha de elaboración','Temperatura (°C) ideal ≤ 7°C','Clasificación','Tipificación (L/N°)','Peso (Kg)','Peso real (Kg)','Dif. peso (%)','Días faena','Desvío T','DP > 3%','Sucursal','Responsable'];
+ const E=(n)=>Array(n).fill('');const top=[['CAMPO VERDE',...E(8),'CONTROL DE RECEPCIÓN DE CARNICERÍA',...E(3),'CAR – 0003',''],[...E(14)],[...E(14)]];
+ top[0]=['CAMPO VERDE','','','CONTROL DE RECEPCIÓN DE CARNICERÍA',...E(8),'CAR – 0003',''];top[1][12]='Rev: 2.0';top[2][12]='MES: '+mes;
+ const ws=XLSX.utils.aoa_to_sheet([...top,['Sucursal','',flt.suc||'Todas','','','Responsable','','Varios',...E(6)],H,
+  ...l.map(r=>[r.producto,fd(r.f_recepcion),fd(r.f_faena),+r.temp,r.clasif,r.tipif,+r.peso_remito,+r.peso_real,+r.dif.toFixed(2),r.dias??'',{ok:'Conforme',dev:'Desviación',nc:'No conforme'}[r.est],r.dp?'SI':'NO',r.sucursal,r.responsable])]);
+ ws['!merges']=[{s:{r:0,c:0},e:{r:2,c:2}},{s:{r:0,c:3},e:{r:2,c:11}},{s:{r:0,c:12},e:{r:0,c:13}},{s:{r:1,c:12},e:{r:1,c:13}},{s:{r:2,c:12},e:{r:2,c:13}},{s:{r:3,c:0},e:{r:3,c:1}},{s:{r:3,c:2},e:{r:3,c:4}},{s:{r:3,c:5},e:{r:3,c:6}},{s:{r:3,c:7},e:{r:3,c:13}}];
+ ws['!cols']=[16,16,18,18,20,20,12,14,12,10,14,10,16,20].map(w=>({wch:w}));
+ const f1=v=>+v.toFixed(1),R=[['RESUMEN · '+mes],['Sucursal',flt.suc||'Todas'],[],['Indicador','Valor','Meta'],['Temperatura promedio (°C)',f1(s.avg),'≤ 7'],['% Entrega óptima (Conforme)',f1(s.p('ok')),'≥ 60'],['% Entrega desviación',f1(s.p('dev')),'≤ 35'],['% No conforme',f1(s.p('nc')),'≤ 5'],['% Desvío de peso > 3%',f1(s.dp/(l.length||1)*100),'0'],['Recepciones con > 4 días desde faena',s.d4,'0'],[],
+  ['Producto','Cantidad','Kg remito','Kg real'],...Object.entries(s.prod).map(([k,o])=>[k,o.n,f1(o.rem),f1(o.real)]),[],['Período ('+(flt.grp==='sem'?'semanal':'mensual')+')','Producto','Cantidad','Kg remito','Kg real'],...s.per.map(o=>[o.k,o.prod,o.n,f1(o.rem),f1(o.real)])];
+ const w2=XLSX.utils.aoa_to_sheet(R);w2['!cols']=[36,16,14,14,14].map(w=>({wch:w}));
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Registros');XLSX.utils.book_append_sheet(wb,w2,'Resumen');
+ XLSX.writeFile(wb,`CAR-0003_${today()}.xlsx`)}
+render();if(user)sync();
+</script></body></html>
