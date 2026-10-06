@@ -37,14 +37,19 @@ body.mob .grid,body.mob .two{grid-template-columns:1fr}body.mob .grid.k{grid-tem
 body.mob .card{padding:16px;border-radius:14px}body.mob input,body.mob select{font-size:16px;padding:14px}body.mob .btn{padding:14px}body.mob #f .btn,body.mob .row .btn{width:100%}
 body.mob .row>div{min-width:100%}body.mob .lc{max-width:380px}
 .ac{margin-top:10px;display:flex;gap:8px}.btn.o.dl{color:#a1241f;border-color:#d9423e}td .btn.s{margin-right:4px}
+
+/* fix: las tablas anchas ya no agrandan la página */
+main>*,.grid>*{min-width:0}main{width:100%}.tw{max-width:100%}
+.two{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
+@media(max-width:800px){.two{grid-template-columns:minmax(0,1fr)}}
 </style></head>
 <body><div id="app"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 // Completar con los datos de tu proyecto Supabase (ver README). Vacío = modo solo local.
 const CONFIG = {
-  SUPABASE_URL: "https://tvrgkcazgwsbntudbfsr.supabase.co",       // ej: https://xxxx.supabase.co
-  SUPABASE_KEY: "sb_publishable_cyktPUcJHMaVcvSaPJcPzQ_o114cLaj",       // anon public key
+  SUPABASE_URL: "",       // ej: https://xxxx.supabase.co
+  SUPABASE_KEY: "",       // anon public key
   USERS: {
     independencia: { n: "Independencia", p: "INDCV", role: "suc" },
     paunero:       { n: "Paunero",       p: "PAUCV", role: "suc" },
