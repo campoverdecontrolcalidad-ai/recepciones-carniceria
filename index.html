@@ -45,20 +45,8 @@ main>*,.grid>*{min-width:0}main{width:100%}.tw{max-width:100%}
 </style></head>
 <body><div id="app"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>
-// Completar con los datos de tu proyecto Supabase (ver README). Vacío = modo solo local.
-const CONFIG = {
-  SUPABASE_URL: "",       // ej: https://xxxx.supabase.co
-  SUPABASE_KEY: "",       // anon public key
-  USERS: {
-    independencia: { n: "Independencia", p: "INDCV", role: "suc" },
-    paunero:       { n: "Paunero",       p: "PAUCV", role: "suc" },
-    arenales:      { n: "Arenales",      p: "ARECV", role: "suc" },
-    sanmartin:     { n: "San Martín",    p: "SMCV",  role: "suc" },
-    calidad:       { n: "Calidad",       p: "CALIDADCV", role: "cal" }
-  }
-};
-</script>
+<script src="config.js"></script>
+<script>window.CONFIG=window.CONFIG||{SUPABASE_URL:'',SUPABASE_KEY:'',USERS:{independencia:{n:'Independencia',p:'INDCV',role:'suc'},paunero:{n:'Paunero',p:'PAUCV',role:'suc'},arenales:{n:'Arenales',p:'ARECV',role:'suc'},sanmartin:{n:'San Martín',p:'SMCV',role:'suc'},calidad:{n:'Calidad',p:'CALIDADCV',role:'cal'}}};</script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -71,7 +59,7 @@ const fd=d=>d?d.split('-').reverse().join('/'):'-';
 const n1=v=>(+v).toLocaleString('es-AR',{maximumFractionDigits:1});
 const B=CONFIG.SUPABASE_URL+'/rest/v1',HD={apikey:CONFIG.SUPABASE_KEY,'Content-Type':'application/json',...(CONFIG.SUPABASE_KEY.startsWith('eyJ')?{Authorization:'Bearer '+CONFIG.SUPABASE_KEY}:{})};
 const PROD=['Media Res','Parrillero','Cuarto','Paleta','Bife'];
-let vw=LS('vw')||(innerWidth<760?'m':'d'),user=JSON.parse(SSt.getItem('u')||'null'),resp=SSt.getItem('r')||'',err='',editId=null,msg='',flt={from:'',to:'',suc:'',grp:'mes'};
+let vw=LS('vw')||(innerWidth<760?'m':'d'),user=JSON.parse(SSt.getItem('u')||'null'),resp=SSt.getItem('r')||'',err='',editId=null,msg='',lastSync='',syncErr=false,syncMsg='',flt={from:'',to:'',suc:'',grp:'mes'};
 
 function calc(r){const d=r.f_faena?Math.round((new Date(r.f_recepcion)-new Date(r.f_faena))/864e5):null;
  const t=+r.temp,dif=r.peso_remito>0?(r.peso_real-r.peso_remito)/r.peso_remito*100:0;
@@ -81,19 +69,20 @@ function all(){const m=new Map();[...(LS(ck())||[]),...(LS('q')||[])].forEach(r=
  const dl=LS('qd')||[];let l=[...m.values()].filter(r=>!dl.includes(r.id));if(user.role==='suc')l=l.filter(r=>r.sucursal===user.n);
  return l.map(calc).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))}
 const busy=()=>user&&user.role==='suc'&&['t','pr','pe','ff','otro','xd','xh'].some(i=>{const e=document.getElementById(i);return e&&e.value});
-async function sync(force){if(!CONFIG.SUPABASE_URL||!navigator.onLine||!user){if(force||!busy())render();return}
- try{const dd=LS('qd')||[];if(dd.length){const r=await fetch(B+'/recepciones?id=in.('+dd.join(',')+')',{method:'DELETE',headers:HD});if(!r.ok)throw 0;LS('qd',[]);LS(ck(),(LS(ck())||[]).filter(x=>!dd.includes(x.id)))}
+async function sync(force){if(force)render();if(!CONFIG.SUPABASE_URL||!navigator.onLine||!user){if(force||!busy())render();return}
+ try{const dd=LS('qd')||[];if(dd.length){const r=await fetch(B+'/recepciones?id=in.('+dd.join(',')+')',{method:'DELETE',headers:HD});if(!r.ok)throw new Error('Anular: '+r.status+' '+(await r.text()).slice(0,140));LS('qd',[]);LS(ck(),(LS(ck())||[]).filter(x=>!dd.includes(x.id)))}
   const q=LS('q')||[];
-  if(q.length){const r=await fetch(B+'/recepciones?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q)});if(!r.ok)throw 0;LS('q',[])}
+  if(q.length){const r=await fetch(B+'/recepciones?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q)});if(!r.ok)throw new Error('Guardar: '+r.status+' '+(await r.text()).slice(0,140));LS('q',[])}
   const f=user.role==='suc'?'&sucursal=eq.'+encodeURIComponent(user.n):'';
-  const g=await fetch(B+'/recepciones?select=*&order=created_at.desc&limit=5000'+f,{headers:HD});if(g.ok)LS(ck(),await g.json())}catch(e){}
+  const g=await fetch(B+'/recepciones?select=*&order=created_at.desc&limit=5000'+f,{headers:HD});if(!g.ok)throw new Error('Leer: '+g.status+' '+(await g.text()).slice(0,140));LS(ck(),await g.json());syncErr=false;syncMsg='';lastSync=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}catch(e){syncErr=true;syncMsg=(e&&e.message)||'sin respuesta'}
  if(force||!busy())render()}
 addEventListener('online',()=>sync());addEventListener('offline',()=>{if(user&&!busy())render()});document.addEventListener('visibilitychange',()=>!document.hidden&&user&&sync());setInterval(()=>user&&sync(),30000);
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 
 function head(sub){const pend=(LS('q')||[]).length;
  return `<header><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj48cmVjdCB4PSI2IiB5PSI2IiB3aWR0aD0iMTA4IiBoZWlnaHQ9IjEwOCIgcng9IjI4IiBmaWxsPSIjZmZmIiBzdHJva2U9IiMxNDMwMWYiIHN0cm9rZS13aWR0aD0iOCIvPjx0ZXh0IHg9IjYwIiB5PSI1NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIEJsYWNrLEFyaWFsIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjI0IiBmaWxsPSIjMTQzMDFmIj5DQU1QTzwvdGV4dD48dGV4dCB4PSI2MCIgeT0iODQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCBCbGFjayxBcmlhbCIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzE0MzAxZiI+VkVSREU8L3RleHQ+PC9zdmc+Cg==" alt="Campo Verde"><div><small>CAMPO VERDE</small><h1>Control de Recepción de Carnicería</h1><div style="opacity:.85;font-size:14px;margin-top:4px">${sub}</div></div><span class="sp"></span>
- <button class="vt">${vl()}</button>${user?`${!navigator.onLine?'<span class="off">Sin conexión</span>':''}${pend?`<span class="off">${pend} pendiente(s) de sincronizar</span>`:''}<span class="pill">CAR-0003 · Rev 2.0</span><button class="btn o s" id="out">Salir</button>`:''}</header>`}
+ <button class="vt">${vl()}</button>${user?`${!navigator.onLine?'<span class="off">Sin conexión</span>':''}${pend?`<span class="off">${pend} pendiente(s) de sincronizar</span>`:''}${CONFIG.SUPABASE_URL?(syncErr&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ No se pudo sincronizar: '+esc(syncMsg)+'</span>':(!pend&&lastSync?`<span class="pill">☁ Guardado en la nube ${lastSync}</span>`:'')):'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Modo local: datos solo en este dispositivo</span>'}<button class="pill" id="sy" style="border:0;color:#fff;cursor:pointer">🔄 Sincronizar</button><span class="pill">CAR-0003 · Rev 2.0</span><button class="btn o s" id="out">Salir</button>`:''}</header>`}
 
 const bv=()=>document.querySelectorAll('.vt').forEach(b=>b.onclick=()=>{vw=vw==='m'?'d':'m';LS('vw',vw);render()});
 const vl=()=>vw==='m'?'🖥 Ver en computadora':'📱 Ver en celular';
@@ -104,13 +93,15 @@ function render(){const a=$('#app');document.body.classList.toggle('mob',vw==='m
   <div class="err">${err}</div><button class="btn big">Entrar</button></form><div class="ft">CAR-0003 · Rev 2.0</div><button type="button" class="vt">${vl()}</button></div></div>`;
   bv();$('#tg').onclick=()=>{const p=$('#lp');p.type=p.type==='password'?'text':'password'};
   $('#lf').onsubmit=e=>{e.preventDefault();const u=CONFIG.USERS[norm($('#lu').value)];
-   if(u&&u.p.toLowerCase()===$('#lp').value.trim().toLowerCase()){user=u;err='';SSt.setItem('u',JSON.stringify(u));sync()}else{err='Usuario o contraseña incorrectos';render()}};return}
+   if(u&&u.p.toLowerCase()===$('#lp').value.trim().toLowerCase()){user=u;err='';SSt.setItem('u',JSON.stringify(u));sync(true)}else{err='Usuario o contraseña incorrectos';render()}};return}
  a.innerHTML=user.role==='suc'?viewSuc():viewCal();
  $('#out').onclick=()=>{['u','r'].forEach(k=>SSt.removeItem(k));user=null;resp='';render()};
- user.role==='suc'?bindSuc():bindCal();bv()}
+ user.role==='suc'?bindSuc():bindCal();bv();const sb=$('#sy');if(sb)sb.onclick=()=>sync(true)}
 
 const tag=r=>`<span class="tag ${r.est}">${{ok:'Conforme',dev:'Desviación',nc:'No conforme'}[r.est]}</span>`;
 const yn=b=>`<span class="tag ${b?'nc':'no'}">${b?'SI':'NO'}</span>`;
+const raw=r=>({id:r.id,sucursal:r.sucursal,responsable:r.responsable,producto:r.producto,f_recepcion:r.f_recepcion,f_faena:r.f_faena,temp:r.temp,clasif:r.clasif,tipif:r.tipif,peso_remito:r.peso_remito,peso_real:r.peso_real,created_at:r.created_at});
+function backup(l){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(l.map(raw),null,1)],{type:'application/json'}));a.download=`respaldo_${user.n.replace(/\s/g,'')}_${today()}.json`;a.click()}
 const ab=r=>`<button type="button" class="btn o s" data-ed="${r.id}">✏️ Editar</button> <button type="button" class="btn o s dl" data-dl="${r.id}">🗑 Anular</button>`;
 function rows(l,suc,act){if(vw==='m')return l.length?l.map(r=>`<div class="rc"><div class="rt"><b>${esc(r.producto)}</b>${tag(r)}</div><div class="rg"><span>Recepción</span><b>${fd(r.f_recepcion)}</b><span>Faena</span><b>${fd(r.f_faena)}</b><span>Temperatura</span><b>${n1(r.temp)} °C</b><span>Clasif. / Tipif.</span><b>${esc(r.clasif)} · ${esc(r.tipif)}</b><span>Peso remito / real</span><b>${n1(r.peso_remito)} / ${n1(r.peso_real)} Kg</b><span>Dif. peso</span><b>${n1(r.dif)}% ${yn(r.dp)}</b><span>Días desde faena</span><b>${r.dias===null?'-':r.dias}${r.d4?' ⚠':''}</b>${suc?`<span>Sucursal</span><b>${esc(r.sucursal)}</b>`:''}<span>Responsable</span><b>${esc(r.responsable)}</b></div>${act?`<div class="ac">${ab(r)}</div>`:''}</div>`).join(''):'<p class="hint">Sin registros</p>';return `<div class="tw"><table><tr><th>Producto</th><th>Recepción</th><th>Faena</th><th>Temp °C</th><th>Clasif.</th><th>Tipif.</th><th>Peso remito</th><th>Peso real</th><th>Dif %</th><th>Días</th><th>Desvío T</th><th>DP&gt;3%</th>${suc?'<th>Sucursal / Resp.</th>':'<th>Responsable</th>'}${act?'<th>Acciones</th>':''}</tr>
 ${l.map(r=>`<tr><td>${esc(r.producto)}</td><td>${fd(r.f_recepcion)}</td><td>${fd(r.f_faena)}</td><td>${n1(r.temp)}</td><td>${esc(r.clasif)}</td><td>${esc(r.tipif)}</td><td>${n1(r.peso_remito)}</td><td>${n1(r.peso_real)}</td><td>${n1(r.dif)}%</td><td>${r.dias===null?'-':`<span class="tag ${r.d4?'nc':'no'}">${r.dias}</span>`}</td><td>${tag(r)}</td><td>${yn(r.dp)}</td><td>${suc?esc(r.sucursal)+' · ':''}${esc(r.responsable)}</td>${act?`<td>${ab(r)}</td>`:''}</tr>`).join('')||'<tr><td colspan="13">Sin registros</td></tr>'}</table></div>`}
@@ -131,12 +122,14 @@ function viewSuc(){const l=all(),h=l.filter(r=>r.f_recepcion===today()),ed=editI
  <div class="card auto"><h2>Análisis automático</h2><div><span>Desvío T</span><b id="a1">-</b></div><div><span>Días desde faena</span><b id="a2">-</b></div><div><span>Diferencia de peso</span><b id="a3">-</b></div><div><span>Diferencia aceptada (3%)</span><b id="a4">-</b></div><div><span>DP &gt; 3%</span><b id="a5">-</b></div>
  <div class="hint" style="margin-top:12px"><span class="dot" style="background:var(--ok)"></span>T ≤ 7 °C Conforme<br><span class="dot" style="background:var(--dv)"></span>7 &lt; T ≤ 10 °C Desviación<br><span class="dot" style="background:var(--nc)"></span>T &gt; 10 °C No conforme<br>Más de 4 días desde faena → No conformidad</div></div></div>
  <div class="card"><h2>Hoy · ${user.n} <span class="pill" style="background:var(--g)">${h.length}</span></h2>${rows(h,0,1)}</div>
- <div class="card"><h2>Registros previos · ${user.n} <small style="color:var(--mu);font-weight:400">${l.length} en total</small></h2><div class="row" style="margin-bottom:14px"><div><label>Desde</label><input type="date" id="xd"></div><div><label>Hasta</label><input type="date" id="xh"></div><div style="flex:none"><button type="button" class="btn" id="xs">⬇ Descargar planilla Excel</button></div></div>${rows(l,0,1)}</div></main>`}
+ <div class="card"><h2>Registros previos · ${user.n} <small style="color:var(--mu);font-weight:400">${l.length} en total</small></h2><div class="row" style="margin-bottom:14px"><div><label>Desde</label><input type="date" id="xd"></div><div><label>Hasta</label><input type="date" id="xh"></div><div style="flex:none"><button type="button" class="btn" id="xs">⬇ Descargar planilla Excel</button></div><div style="flex:none"><button type="button" class="btn o" id="bk">💾 Respaldo</button> <button type="button" class="btn o" id="rb">⬆ Restaurar</button><input type="file" id="rs" accept=".json" hidden></div></div>${rows(l,0,1)}</div></main>`}
 
 function bindSuc(){const p=$('#prod'),g=id=>$('#'+id).value;
  document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{editId=b.dataset.ed;render();scrollTo(0,0)});
  document.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>{if(!confirm('¿Anular este registro? Se elimina de forma definitiva.'))return;const id=b.dataset.dl;LS('q',(LS('q')||[]).filter(r=>r.id!==id));LS(ck(),(LS(ck())||[]).filter(r=>r.id!==id));LS('qd',[...(LS('qd')||[]),id]);if(editId===id)editId=null;msg='Registro anulado';sync(true)});
  $('#xs').onclick=()=>{const a=$('#xd').value,b=$('#xh').value;excel(all().filter(r=>(!a||r.f_recepcion>=a)&&(!b||r.f_recepcion<=b)),user.n,a,b)};
+ $('#bk').onclick=()=>backup(all());$('#rb').onclick=()=>$('#rs').click();
+ $('#rs').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const a=JSON.parse(rd.result).filter(r=>r&&r.id&&r.sucursal===user.n&&r.producto&&r.f_recepcion);LS('q',[...(LS('q')||[]).filter(x=>!a.some(y=>y.id===x.id)),...a.map(raw)]);msg=a.length+' registro(s) restaurado(s)'}catch(x){msg='Archivo no válido'}sync(true)};rd.readAsText(f)};
  if($('#cx'))$('#cx').onclick=()=>{editId=null;render()};
  p.onchange=()=>$('#otro').style.display=p.value==='__o'?'block':'none';
  $('#resp').oninput=e=>{resp=e.target.value;SSt.setItem('r',resp)};
@@ -170,7 +163,7 @@ function viewCal(){const l=filt(),s=stats(l),f1=v=>n1(v)+'%';
  <div class="card"><div class="row"><div><label>Fecha de inicio</label><input type="date" id="fi" value="${flt.from}"></div><div><label>Fecha de fin</label><input type="date" id="fe" value="${flt.to}"></div>
  <div><label>Sucursal</label><select id="fs"><option value="">Todas</option>${['Independencia','Paunero','Arenales','San Martín'].map(x=>`<option ${flt.suc===x?'selected':''}>${x}</option>`).join('')}</select></div>
  <div style="flex:none"><button class="btn o s" id="pw">Esta semana</button> <button class="btn o s" id="pm">Este mes</button> <button class="btn o s" id="pc">Todo</button></div>
- <div style="flex:none"><button class="btn" id="xl">⬇ Descargar Excel</button></div></div><div class="hint">${l.length} recepciones en el período</div></div>
+ <div style="flex:none"><button class="btn" id="xl">⬇ Descargar Excel</button> <button class="btn o" id="bk">💾 Respaldo</button></div></div><div class="hint">${l.length} recepciones en el período</div></div>
  <div class="grid k"><div class="card kpi b"><span>Temperatura promedio</span><b>${n1(s.avg)} °C</b><span>Ideal ≤ 7 °C</span></div>
  <div class="card kpi"><span>% Entrega óptima</span><b>${f1(s.p('ok'))}</b><span>Meta ≥ 60%</span></div>
  <div class="card kpi y"><span>% Entrega desviación</span><b>${f1(s.p('dev'))}</b><span>Meta ≤ 35%</span></div>
@@ -187,7 +180,7 @@ function bindCal(){const set=(a,b)=>{flt.from=a;flt.to=b;render()};
  $('#fi').onchange=e=>set(e.target.value,flt.to);$('#fe').onchange=e=>set(flt.from,e.target.value);
  $('#fs').onchange=e=>{flt.suc=e.target.value;render()};$('#gp').onchange=e=>{flt.grp=e.target.value;render()};
  $('#pw').onclick=()=>set(wk(today()),today());$('#pm').onclick=()=>set(today().slice(0,8)+'01',today());$('#pc').onclick=()=>set('','');
- $('#xl').onclick=()=>excel(filt(),flt.suc,flt.from,flt.to)}
+ $('#xl').onclick=()=>excel(filt(),flt.suc,flt.from,flt.to);$('#bk').onclick=()=>backup(all())}
 
 function excel(l,suc,from,to){if(typeof XLSX==='undefined'){alert('Para descargar el Excel hace falta conexión la primera vez (se guarda para usarlo después sin señal).');return}const s=stats(l),mes=from?fd(from)+' al '+fd(to||today()):'Todos los períodos';
  const H=['Producto','Fecha de recepción','Fecha de elaboración','Temperatura (°C) ideal ≤ 7°C','Clasificación','Tipificación (L/N°)','Peso (Kg)','Peso real (Kg)','Dif. peso (%)','Días faena','Desvío T','DP > 3%','Sucursal','Responsable'];
