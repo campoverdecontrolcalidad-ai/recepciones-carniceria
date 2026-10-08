@@ -54,10 +54,14 @@ const norm=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f\s]/g,'');
 const mem={};const st=t=>{try{const x=window[t];x.setItem('_t','1');x.removeItem('_t');return x}catch(e){return{getItem:k=>mem[t+k]??null,setItem:(k,v)=>{mem[t+k]=String(v)},removeItem:k=>{delete mem[t+k]},clear:()=>{}}}};
 const LSt=st('localStorage'),SSt=st('sessionStorage');
 const LS=(k,v)=>{try{return v===undefined?JSON.parse(LSt.getItem(k)||'null'):LSt.setItem(k,JSON.stringify(v))}catch(e){return v===undefined?null:0}};
+const IDB={db:null,open(){return Promise.race([new Promise(r=>{try{const q=indexedDB.open('cv',1);q.onupgradeneeded=()=>q.result.createObjectStore('c');q.onsuccess=()=>{this.db=q.result;r()};q.onerror=q.onblocked=()=>r()}catch(e){r()}}),new Promise(r=>setTimeout(r,1500))])},
+get(k){return new Promise(r=>{try{if(!this.db)return r(null);const q=this.db.transaction('c').objectStore('c').get(k);q.onsuccess=()=>r(q.result||null);q.onerror=()=>r(null)}catch(e){r(null)}})},
+set(k,v){try{this.db&&this.db.transaction('c','readwrite').objectStore('c').put(v,k)}catch(e){}}};
+let CACHE={},lastFull=0;
 const today=()=>new Date().toLocaleDateString('en-CA');
 const fd=d=>d?d.split('-').reverse().join('/'):'-';
 const n1=v=>(+v).toLocaleString('es-AR',{maximumFractionDigits:1});
-const B=CONFIG.SUPABASE_URL+'/rest/v1',HD={apikey:CONFIG.SUPABASE_KEY,'Content-Type':'application/json',...(CONFIG.SUPABASE_KEY.startsWith('eyJ')?{Authorization:'Bearer '+CONFIG.SUPABASE_KEY}:{})};
+const SK=(CONFIG.SUPABASE_KEY||'').trim(),B=(CONFIG.SUPABASE_URL||'').trim().replace(/\/+$/,'').replace(/\/rest\/v1$/,'')+'/rest/v1',HD={apikey:SK,'Content-Type':'application/json',...(SK.startsWith('eyJ')?{Authorization:'Bearer '+SK}:{})};
 const PROD=['Media Res','Parrillero','Cuarto','Paleta','Bife'];
 let vw=LS('vw')||(innerWidth<760?'m':'d'),user=JSON.parse(SSt.getItem('u')||'null'),resp=SSt.getItem('r')||'',err='',editId=null,msg='',lastSync='',syncErr=false,syncMsg='',flt={from:'',to:'',suc:'',grp:'mes'};
 
@@ -65,16 +69,19 @@ function calc(r){const d=r.f_faena?Math.round((new Date(r.f_recepcion)-new Date(
  const t=+r.temp,dif=r.peso_remito>0?(r.peso_real-r.peso_remito)/r.peso_remito*100:0;
  return{...r,dias:d,est:t<=7?'ok':t<=10?'dev':'nc',dif,dp:Math.abs(dif)>3,d4:d!==null&&d>4}}
 const ck=()=>'c_'+user.n;
-function all(){const m=new Map();[...(LS(ck())||[]),...(LS('q')||[])].forEach(r=>m.set(r.id,r));
+function all(){const m=new Map();[...gc(),...(LS('q')||[])].forEach(r=>m.set(r.id,r));
  const dl=LS('qd')||[];let l=[...m.values()].filter(r=>!dl.includes(r.id));if(user.role==='suc')l=l.filter(r=>r.sucursal===user.n);
  return l.map(calc).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))}
+const gc=()=>CACHE[ck()]||[],sc=v=>{CACHE[ck()]=v;IDB.set(ck(),v)};
+const mergeRows=(a,b)=>{const m=new Map(a.map(r=>[r.id,r]));b.forEach(r=>m.set(r.id,r));return[...m.values()]};
+async function pull(f,full){let out=[],o=0;for(;;){const g=await fetch(B+'/recepciones?select=*&order=created_at.desc,id.asc&limit=1000&offset='+o+f,{headers:HD});if(!g.ok)throw new Error('Leer: '+g.status+' '+(await g.text()).slice(0,140));const a=await g.json();out=out.concat(a);if(!full||a.length<1000||out.length>=200000)break;o+=1000}return out}
 const busy=()=>user&&user.role==='suc'&&['t','pr','pe','ff','otro','xd','xh'].some(i=>{const e=document.getElementById(i);return e&&e.value});
 async function sync(force){if(force)render();if(!CONFIG.SUPABASE_URL||!navigator.onLine||!user){if(force||!busy())render();return}
- try{const dd=LS('qd')||[];if(dd.length){const r=await fetch(B+'/recepciones?id=in.('+dd.join(',')+')',{method:'DELETE',headers:HD});if(!r.ok)throw new Error('Anular: '+r.status+' '+(await r.text()).slice(0,140));LS('qd',[]);LS(ck(),(LS(ck())||[]).filter(x=>!dd.includes(x.id)))}
+ try{const dd=LS('qd')||[];if(dd.length){const r=await fetch(B+'/recepciones?id=in.('+dd.join(',')+')',{method:'DELETE',headers:HD});if(!r.ok)throw new Error('Anular: '+r.status+' '+(await r.text()).slice(0,140));LS('qd',[]);sc(gc().filter(x=>!dd.includes(x.id)))}
   const q=LS('q')||[];
   if(q.length){const r=await fetch(B+'/recepciones?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q)});if(!r.ok)throw new Error('Guardar: '+r.status+' '+(await r.text()).slice(0,140));LS('q',[])}
   const f=user.role==='suc'?'&sucursal=eq.'+encodeURIComponent(user.n):'';
-  const g=await fetch(B+'/recepciones?select=*&order=created_at.desc&limit=5000'+f,{headers:HD});if(!g.ok)throw new Error('Leer: '+g.status+' '+(await g.text()).slice(0,140));LS(ck(),await g.json());syncErr=false;syncMsg='';lastSync=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}catch(e){syncErr=true;syncMsg=(e&&e.message)||'sin respuesta'}
+  const full=Date.now()-lastFull>6e5||!gc().length,rows=await pull(f,full);sc(full?rows:mergeRows(gc(),rows));if(full)lastFull=Date.now();syncErr=false;syncMsg='';lastSync=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}catch(e){syncErr=true;syncMsg=(e&&e.message)||'sin respuesta'}
  if(force||!busy())render()}
 addEventListener('online',()=>sync());addEventListener('offline',()=>{if(user&&!busy())render()});document.addEventListener('visibilitychange',()=>!document.hidden&&user&&sync());setInterval(()=>user&&sync(),30000);
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
@@ -82,7 +89,7 @@ try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}ca
 
 function head(sub){const pend=(LS('q')||[]).length;
  return `<header><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj48cmVjdCB4PSI2IiB5PSI2IiB3aWR0aD0iMTA4IiBoZWlnaHQ9IjEwOCIgcng9IjI4IiBmaWxsPSIjZmZmIiBzdHJva2U9IiMxNDMwMWYiIHN0cm9rZS13aWR0aD0iOCIvPjx0ZXh0IHg9IjYwIiB5PSI1NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIEJsYWNrLEFyaWFsIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjI0IiBmaWxsPSIjMTQzMDFmIj5DQU1QTzwvdGV4dD48dGV4dCB4PSI2MCIgeT0iODQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCBCbGFjayxBcmlhbCIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzE0MzAxZiI+VkVSREU8L3RleHQ+PC9zdmc+Cg==" alt="Campo Verde"><div><small>CAMPO VERDE</small><h1>Control de Recepción de Carnicería</h1><div style="opacity:.85;font-size:14px;margin-top:4px">${sub}</div></div><span class="sp"></span>
- <button class="vt">${vl()}</button>${user?`${!navigator.onLine?'<span class="off">Sin conexión</span>':''}${pend?`<span class="off">${pend} pendiente(s) de sincronizar</span>`:''}${CONFIG.SUPABASE_URL?(syncErr&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ No se pudo sincronizar: '+esc(syncMsg)+'</span>':(!pend&&lastSync?`<span class="pill">☁ Guardado en la nube ${lastSync}</span>`:'')):'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Modo local: datos solo en este dispositivo</span>'}<button class="pill" id="sy" style="border:0;color:#fff;cursor:pointer">🔄 Sincronizar</button><span class="pill">CAR-0003 · Rev 2.0</span><button class="btn o s" id="out">Salir</button>`:''}</header>`}
+ <button class="vt">${vl()}</button>${user?`${!navigator.onLine?'<span class="off">Sin conexión</span>':''}${pend?`<span class="off">${pend} pendiente(s) de sincronizar</span>`:''}${CONFIG.SUPABASE_URL?(syncErr&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ No se pudo sincronizar: '+esc(syncMsg)+'</span>':(!pend&&lastSync?`<span class="pill">☁ Guardado en la nube ${lastSync}</span>`:'')):'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Modo local: datos solo en este dispositivo</span>'}<span class="pill">CAR-0003 · Rev 2.0</span><button class="btn o s" id="out">Salir</button>`:''}</header>`}
 
 const bv=()=>document.querySelectorAll('.vt').forEach(b=>b.onclick=()=>{vw=vw==='m'?'d':'m';LS('vw',vw);render()});
 const vl=()=>vw==='m'?'🖥 Ver en computadora':'📱 Ver en celular';
@@ -93,10 +100,10 @@ function render(){const a=$('#app');document.body.classList.toggle('mob',vw==='m
   <div class="err">${err}</div><button class="btn big">Entrar</button></form><div class="ft">CAR-0003 · Rev 2.0</div><button type="button" class="vt">${vl()}</button></div></div>`;
   bv();$('#tg').onclick=()=>{const p=$('#lp');p.type=p.type==='password'?'text':'password'};
   $('#lf').onsubmit=e=>{e.preventDefault();const u=CONFIG.USERS[norm($('#lu').value)];
-   if(u&&u.p.toLowerCase()===$('#lp').value.trim().toLowerCase()){user=u;err='';SSt.setItem('u',JSON.stringify(u));sync(true)}else{err='Usuario o contraseña incorrectos';render()}};return}
+   if(u&&u.p.toLowerCase()===$('#lp').value.trim().toLowerCase()){user=u;err='';SSt.setItem('u',JSON.stringify(u));IDB.get(ck()).then(v=>{CACHE[ck()]=v||[];lastFull=0;sync(true)})}else{err='Usuario o contraseña incorrectos';render()}};return}
  a.innerHTML=user.role==='suc'?viewSuc():viewCal();
  $('#out').onclick=()=>{['u','r'].forEach(k=>SSt.removeItem(k));user=null;resp='';render()};
- user.role==='suc'?bindSuc():bindCal();bv();const sb=$('#sy');if(sb)sb.onclick=()=>sync(true)}
+ user.role==='suc'?bindSuc():bindCal();bv();}
 
 const tag=r=>`<span class="tag ${r.est}">${{ok:'Conforme',dev:'Desviación',nc:'No conforme'}[r.est]}</span>`;
 const yn=b=>`<span class="tag ${b?'nc':'no'}">${b?'SI':'NO'}</span>`;
@@ -126,7 +133,7 @@ function viewSuc(){const l=all(),h=l.filter(r=>r.f_recepcion===today()),ed=editI
 
 function bindSuc(){const p=$('#prod'),g=id=>$('#'+id).value;
  document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{editId=b.dataset.ed;render();scrollTo(0,0)});
- document.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>{if(!confirm('¿Anular este registro? Se elimina de forma definitiva.'))return;const id=b.dataset.dl;LS('q',(LS('q')||[]).filter(r=>r.id!==id));LS(ck(),(LS(ck())||[]).filter(r=>r.id!==id));LS('qd',[...(LS('qd')||[]),id]);if(editId===id)editId=null;msg='Registro anulado';sync(true)});
+ document.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>{if(!confirm('¿Anular este registro? Se elimina de forma definitiva.'))return;const id=b.dataset.dl;LS('q',(LS('q')||[]).filter(r=>r.id!==id));sc(gc().filter(r=>r.id!==id));LS('qd',[...(LS('qd')||[]),id]);if(editId===id)editId=null;msg='Registro anulado';sync(true)});
  $('#xs').onclick=()=>{const a=$('#xd').value,b=$('#xh').value;excel(all().filter(r=>(!a||r.f_recepcion>=a)&&(!b||r.f_recepcion<=b)),user.n,a,b)};
  $('#bk').onclick=()=>backup(all());$('#rb').onclick=()=>$('#rs').click();
  $('#rs').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const a=JSON.parse(rd.result).filter(r=>r&&r.id&&r.sucursal===user.n&&r.producto&&r.f_recepcion);LS('q',[...(LS('q')||[]).filter(x=>!a.some(y=>y.id===x.id)),...a.map(raw)]);msg=a.length+' registro(s) restaurado(s)'}catch(x){msg='Archivo no válido'}sync(true)};rd.readAsText(f)};
@@ -158,11 +165,15 @@ function stats(l){const c={ok:0,dev:0,nc:0};l.forEach(r=>c[r.est]++);const n=l.l
 function donut(c){const t=c.ok+c.dev+c.nc||1,R=80,C=2*Math.PI*R;let o=0;
  return `<svg viewBox="0 0 200 200" width="210">`+[[c.ok,'#3d9a5f'],[c.dev,'#ebb433'],[c.nc,'#d9423e']].map(([v,col])=>{const l=v/t*C,s=`<circle cx="100" cy="100" r="${R}" fill="none" stroke="${col}" stroke-width="34" stroke-dasharray="${l} ${C-l}" stroke-dashoffset="${-o}" transform="rotate(-90 100 100)"/>`;o+=l;return s}).join('')+`<text x="100" y="108" text-anchor="middle" font-size="26" font-weight="700" fill="#17251c">${c.ok+c.dev+c.nc}</text></svg>`}
 
+const dk=d=>`<td style="font-weight:700;color:${d<-0.05?'#a1241f':d>0.05?'#1d6b3a':'inherit'}">${d>0.05?'+':''}${n1(d)}</td>`;
+function ptab(s){const e=Object.entries(s.prod),t=e.reduce((a,[,o])=>({n:a.n+o.n,rem:a.rem+o.rem,real:a.real+o.real}),{n:0,rem:0,real:0});
+ return `<div class="tw"><table><tr><th>Producto</th><th>Cant.</th><th>Kg remito</th><th>Kg real</th><th>Dif. kg</th><th>Prom. sem.</th></tr>${e.map(([k,o])=>`<tr><td>${esc(k)}</td><td>${o.n}</td><td>${n1(o.rem)}</td><td>${n1(o.real)}</td>${dk(o.real-o.rem)}<td>${n1(o.n/s.span)}</td></tr>`).join('')||'<tr><td colspan="6">Sin datos</td></tr>'}${e.length?`<tr style="font-weight:700;background:#f1f6f2"><td>Total</td><td>${t.n}</td><td>${n1(t.rem)}</td><td>${n1(t.real)}</td>${dk(t.real-t.rem)}<td>${n1(t.n/s.span)}</td></tr>`:''}</table></div>`}
+function sto(){const n=all().length,mb=n*0.4/1024,p=mb/500*100;return `<div class="card"><h2>Espacio de almacenamiento</h2><div style="background:#e8efe9;border-radius:99px;height:12px;overflow:hidden"><div style="width:${Math.min(100,Math.max(p,0.5))}%;height:100%;background:${p>=80?'var(--nc)':p>=60?'var(--dv)':'var(--ok)'}"></div></div><div class="hint" style="margin-top:8px">${n.toLocaleString('es-AR')} registros guardados · uso estimado ${mb<10?mb.toFixed(2):Math.round(mb)} MB de 500 MB (${p<1?'menos del 1':Math.round(p)}%) del plan gratuito. ${p>=80?'⚠ Descargá el Excel de cada sucursal y archivá los registros antiguos.':'Hay espacio de sobra: no hace falta borrar registros.'}</div></div>`}
 function viewCal(){const l=filt(),s=stats(l),f1=v=>n1(v)+'%';
  return head('Perfil Calidad · Análisis de todas las sucursales')+`<main>
  <div class="card"><div class="row"><div><label>Fecha de inicio</label><input type="date" id="fi" value="${flt.from}"></div><div><label>Fecha de fin</label><input type="date" id="fe" value="${flt.to}"></div>
  <div><label>Sucursal</label><select id="fs"><option value="">Todas</option>${['Independencia','Paunero','Arenales','San Martín'].map(x=>`<option ${flt.suc===x?'selected':''}>${x}</option>`).join('')}</select></div>
- <div style="flex:none"><button class="btn o s" id="pw">Esta semana</button> <button class="btn o s" id="pm">Este mes</button> <button class="btn o s" id="pc">Todo</button></div>
+ <div style="flex:none"><button class="btn o s" id="pw">Esta semana</button> <button class="btn o s" id="pm">Este mes</button> <button class="btn o s" id="pp">Mes anterior</button> <button class="btn o s" id="pc">Todo</button></div>
  <div style="flex:none"><button class="btn" id="xl">⬇ Descargar Excel</button> <button class="btn o" id="bk">💾 Respaldo</button></div></div><div class="hint">${l.length} recepciones en el período</div></div>
  <div class="grid k"><div class="card kpi b"><span>Temperatura promedio</span><b>${n1(s.avg)} °C</b><span>Ideal ≤ 7 °C</span></div>
  <div class="card kpi"><span>% Entrega óptima</span><b>${f1(s.p('ok'))}</b><span>Meta ≥ 60%</span></div>
@@ -171,15 +182,14 @@ function viewCal(){const l=filt(),s=stats(l),f1=v=>n1(v)+'%';
  <div class="card kpi b"><span>% Desvío de peso &gt; 3%</span><b>${f1(s.dp/(l.length||1)*100)}</b><span>${s.dp} recepciones · ideal 0</span></div>
  <div class="card kpi b"><span>Más de 4 días desde faena</span><b>${s.d4}</b><span>ideal 0</span></div></div>
  <div class="grid two"><div class="card"><h2>Distribución de temperaturas</h2><div class="row" style="align-items:center;justify-content:center">${donut(s.c)}<div style="flex:1;min-width:200px">${[['ok','Conforme','--ok'],['dev','Desviación','--dv'],['nc','No conforme','--nc']].map(([k,n,c])=>`<div class="leg"><span><span class="dot" style="background:var(${c})"></span>${n}</span><b>${s.c[k]} · ${f1(s.p(k))}</b></div>`).join('')}</div></div></div>
- <div class="card"><h2>Cantidad y kg por producto</h2><div class="tw"><table><tr><th>Producto</th><th>Cant.</th><th>Kg remito</th><th>Kg real</th><th>Prom. sem.</th></tr>${Object.entries(s.prod).map(([k,o])=>`<tr><td>${esc(k)}</td><td>${o.n}</td><td>${n1(o.rem)}</td><td>${n1(o.real)}</td><td>${n1(o.n/s.span)}</td></tr>`).join('')||'<tr><td colspan="5">Sin datos</td></tr>'}</table></div></div></div>
- <div class="card"><h2>Resumen por período <select id="gp" style="width:auto;display:inline;margin-left:10px"><option value="mes" ${flt.grp==='mes'?'selected':''}>Mensual</option><option value="sem" ${flt.grp==='sem'?'selected':''}>Semanal</option></select></h2>
- <div class="tw"><table><tr><th>Período</th><th>Producto</th><th>Cant.</th><th>Kg remito</th><th>Kg real</th></tr>${s.per.map(o=>`<tr><td>${o.k}</td><td>${esc(o.prod)}</td><td>${o.n}</td><td>${n1(o.rem)}</td><td>${n1(o.real)}</td></tr>`).join('')||'<tr><td colspan="5">Sin datos</td></tr>'}</table></div></div>
- <div class="card"><h2>Registros del período <small style="color:var(--mu);font-weight:400">${l.length} en total</small></h2>${rows(l,1)}</div></main>`}
+ <div class="card"><h2>Cantidad y kg por producto</h2>${ptab(s)}</div></div>
+ 
+ <div class="card"><h2>Registros del período <small style="color:var(--mu);font-weight:400">${l.length} en total</small></h2>${rows(l,1)}</div>${sto()}</main>`}
 
 function bindCal(){const set=(a,b)=>{flt.from=a;flt.to=b;render()};
  $('#fi').onchange=e=>set(e.target.value,flt.to);$('#fe').onchange=e=>set(flt.from,e.target.value);
- $('#fs').onchange=e=>{flt.suc=e.target.value;render()};$('#gp').onchange=e=>{flt.grp=e.target.value;render()};
- $('#pw').onclick=()=>set(wk(today()),today());$('#pm').onclick=()=>set(today().slice(0,8)+'01',today());$('#pc').onclick=()=>set('','');
+ $('#fs').onchange=e=>{flt.suc=e.target.value;render()};
+ $('#pw').onclick=()=>set(wk(today()),today());$('#pm').onclick=()=>set(today().slice(0,8)+'01',today());$('#pp').onclick=()=>{const d=new Date(),a=new Date(d.getFullYear(),d.getMonth()-1,1),b=new Date(d.getFullYear(),d.getMonth(),0);set(a.toLocaleDateString('en-CA'),b.toLocaleDateString('en-CA'))};$('#pc').onclick=()=>set('','');
  $('#xl').onclick=()=>excel(filt(),flt.suc,flt.from,flt.to);$('#bk').onclick=()=>backup(all())}
 
 function excel(l,suc,from,to){if(typeof XLSX==='undefined'){alert('Para descargar el Excel hace falta conexión la primera vez (se guarda para usarlo después sin señal).');return}const s=stats(l),mes=from?fd(from)+' al '+fd(to||today()):'Todos los períodos';
@@ -191,9 +201,9 @@ function excel(l,suc,from,to){if(typeof XLSX==='undefined'){alert('Para descarga
  ws['!merges']=[{s:{r:0,c:0},e:{r:2,c:2}},{s:{r:0,c:3},e:{r:2,c:11}},{s:{r:0,c:12},e:{r:0,c:13}},{s:{r:1,c:12},e:{r:1,c:13}},{s:{r:2,c:12},e:{r:2,c:13}},{s:{r:3,c:0},e:{r:3,c:1}},{s:{r:3,c:2},e:{r:3,c:4}},{s:{r:3,c:5},e:{r:3,c:6}},{s:{r:3,c:7},e:{r:3,c:13}}];
  ws['!cols']=[16,16,18,18,20,20,12,14,12,10,14,10,16,20].map(w=>({wch:w}));
  const f1=v=>+v.toFixed(1),R=[['RESUMEN · '+mes],['Sucursal',suc||'Todas'],[],['Indicador','Valor','Meta'],['Temperatura promedio (°C)',f1(s.avg),'≤ 7'],['% Entrega óptima (Conforme)',f1(s.p('ok')),'≥ 60'],['% Entrega desviación',f1(s.p('dev')),'≤ 35'],['% No conforme',f1(s.p('nc')),'≤ 5'],['% Desvío de peso > 3%',f1(s.dp/(l.length||1)*100),'0'],['Recepciones con > 4 días desde faena',s.d4,'0'],[],
-  ['Producto','Cantidad','Kg remito','Kg real'],...Object.entries(s.prod).map(([k,o])=>[k,o.n,f1(o.rem),f1(o.real)]),[],['Período ('+(flt.grp==='sem'?'semanal':'mensual')+')','Producto','Cantidad','Kg remito','Kg real'],...s.per.map(o=>[o.k,o.prod,o.n,f1(o.rem),f1(o.real)])];
+  ['Producto','Cantidad','Kg remito','Kg real','Dif. kg'],...Object.entries(s.prod).map(([k,o])=>[k,o.n,f1(o.rem),f1(o.real),f1(o.real-o.rem)]),[],['Período ('+(flt.grp==='sem'?'semanal':'mensual')+')','Producto','Cantidad','Kg remito','Kg real'],...s.per.map(o=>[o.k,o.prod,o.n,f1(o.rem),f1(o.real)])];
  const w2=XLSX.utils.aoa_to_sheet(R);w2['!cols']=[36,16,14,14,14].map(w=>({wch:w}));
  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Registros');XLSX.utils.book_append_sheet(wb,w2,'Resumen');
  XLSX.writeFile(wb,`CAR-0003_${(suc||'Todas').replace(/\s/g,'')}_${today()}.xlsx`)}
-render();if(user)sync();
+IDB.open().then(async()=>{if(user)CACHE[ck()]=(await IDB.get(ck()))||[];render();if(user)sync()});
 </script></body></html>
