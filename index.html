@@ -42,11 +42,22 @@ body.mob .row>div{min-width:100%}body.mob .lc{max-width:380px}
 main>*,.grid>*{min-width:0}main{width:100%}.tw{max-width:100%}
 .two{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
 @media(max-width:800px){.two{grid-template-columns:minmax(0,1fr)}}
+
+/* v2.1: KPIs como filtro, 6 en línea, foto, modificaciones */
+.kpi{cursor:pointer;display:flex;flex-direction:column;gap:3px;transition:box-shadow .15s,background .15s}.kpi:hover{box-shadow:0 4px 14px rgba(20,48,31,.13)}
+.kpi.act{background:#eef7f1;box-shadow:inset 0 0 0 3px var(--g)}.kpi .kl{font-size:13px;font-weight:700;color:var(--tx);line-height:1.25;min-height:2.5em}.kpi b{font-size:28px}.kpi span{font-size:12px}
+.grid.k{grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}.grid.k .kpi{padding:12px 13px}
+@media(max-width:1050px){.grid.k{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.ds{grid-template-columns:minmax(0,1fr) minmax(0,2.1fr)}@media(max-width:800px){.ds{grid-template-columns:minmax(0,1fr)}}
+.fx{display:flex;flex-direction:column;align-items:center;gap:6px}.fx>div{width:100%}.sn{margin:-8px 0 10px;font-size:14px;font-weight:700;color:var(--g)}
+.ph{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.ph img{width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--ln)}.ph>div{flex:1;min-width:180px}
+details summary{cursor:pointer;font-weight:600;color:var(--g)}.hl{white-space:normal;min-width:230px;max-width:380px;font-size:12px;color:var(--tx);margin-top:6px;text-align:left;font-weight:400}.hl div{padding:5px 0;border-top:1px dashed var(--ln)}
+td a,.rg a{color:var(--g);font-weight:600}
 </style></head>
 <body><div id="app"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="config.js"></script>
-<script>window.CONFIG=window.CONFIG||{SUPABASE_URL:'',SUPABASE_KEY:'',USERS:{independencia:{n:'Independencia',p:'INDCV',role:'suc'},paunero:{n:'Paunero',p:'PAUCV',role:'suc'},arenales:{n:'Arenales',p:'ARECV',role:'suc'},sanmartin:{n:'San Martín',p:'SMCV',role:'suc'},calidad:{n:'Calidad',p:'CALIDADCV',role:'cal'}}};</script>
+<script>window.CONFIG=window.CONFIG||{SUPABASE_URL:'',SUPABASE_KEY:'',DRIVE_URL:'',USERS:{independencia:{n:'Independencia',p:'INDCV',role:'suc'},paunero:{n:'Paunero',p:'PAUCV',role:'suc'},arenales:{n:'Arenales',p:'ARECV',role:'suc'},sanmartin:{n:'San Martín',p:'SMCV',role:'suc'},calidad:{n:'Calidad',p:'CALIDADCV',role:'cal'}}};</script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -55,15 +66,24 @@ const mem={};const st=t=>{try{const x=window[t];x.setItem('_t','1');x.removeItem
 const LSt=st('localStorage'),SSt=st('sessionStorage');
 const LS=(k,v)=>{try{return v===undefined?JSON.parse(LSt.getItem(k)||'null'):LSt.setItem(k,JSON.stringify(v))}catch(e){return v===undefined?null:0}};
 const IDB={db:null,open(){return Promise.race([new Promise(r=>{try{const q=indexedDB.open('cv',1);q.onupgradeneeded=()=>q.result.createObjectStore('c');q.onsuccess=()=>{this.db=q.result;r()};q.onerror=q.onblocked=()=>r()}catch(e){r()}}),new Promise(r=>setTimeout(r,1500))])},
-get(k){return new Promise(r=>{try{if(!this.db)return r(null);const q=this.db.transaction('c').objectStore('c').get(k);q.onsuccess=()=>r(q.result||null);q.onerror=()=>r(null)}catch(e){r(null)}})},
-set(k,v){try{this.db&&this.db.transaction('c','readwrite').objectStore('c').put(v,k)}catch(e){}}};
+m:{},get(k){return new Promise(r=>{try{if(!this.db)return r(this.m[k]??null);const q=this.db.transaction('c').objectStore('c').get(k);q.onsuccess=()=>r(q.result||null);q.onerror=()=>r(null)}catch(e){r(null)}})},
+set(k,v){return new Promise(r=>{try{if(!this.db){this.m[k]=v;return r()}const t=this.db.transaction('c','readwrite');t.objectStore('c').put(v,k);t.oncomplete=t.onerror=t.onabort=()=>r()}catch(e){this.m[k]=v;r()}})},
+del(k){try{delete this.m[k];this.db&&this.db.transaction('c','readwrite').objectStore('c').delete(k)}catch(e){}}};
 let CACHE={},lastFull=0;
 const today=()=>new Date().toLocaleDateString('en-CA');
 const fd=d=>d?d.split('-').reverse().join('/'):'-';
 const n1=v=>(+v).toLocaleString('es-AR',{maximumFractionDigits:1});
 const SK=(CONFIG.SUPABASE_KEY||'').trim(),B=(CONFIG.SUPABASE_URL||'').trim().replace(/\/+$/,'').replace(/\/rest\/v1$/,'')+'/rest/v1',HD={apikey:SK,'Content-Type':'application/json',...(SK.startsWith('eyJ')?{Authorization:'Bearer '+SK}:{})};
-const PROD=['Media Res','Parrillero','Cuarto','Paleta','Bife'];
-let vw=LS('vw')||(innerWidth<760?'m':'d'),user=JSON.parse(SSt.getItem('u')||'null'),resp=SSt.getItem('r')||'',err='',editId=null,msg='',lastSync='',syncErr=false,syncMsg='',sf={from:'',to:''},flt={from:'',to:'',suc:'',grp:'mes'};
+const PROD=['Media Res','Parrillero','Cuarto','Paleta','Bife'],CLA=['2D-VQ','2D-NT','SIN CLASIFICACIÓN'],TIP=['C1','SIN TIPIFICACIÓN'];
+const DCOLS=['id','sucursal','responsable','producto','f_recepcion','f_faena','temp','clasif','tipif','peso_remito','peso_real','created_at','foto_url','historial'];
+const fullRow=r=>{const o={};DCOLS.forEach(k=>o[k]=r[k]===undefined?(k==='historial'?[]:null):r[k]);return o};
+const uid=()=>crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const v=Math.random()*16|0;return(c=='x'?v:v&3|8).toString(16)});
+const hist=r=>Array.isArray(r.historial)?r.historial:[];
+const fdt=t=>{const d=new Date(t);return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})};
+const CAMPOS=[['producto','Producto'],['f_recepcion','Fecha de recepción',fd],['f_faena','Fecha de faena',fd],['temp','Temperatura (°C)',n1],['clasif','Clasificación'],['tipif','Tipificación'],['peso_remito','Peso remito (Kg)',n1],['peso_real','Peso real (Kg)',n1]];
+const difs=(a,b)=>CAMPOS.filter(([k,,f])=>f===n1?+a[k]!==+b[k]:String(a[k]??'')!==String(b[k]??'')).map(([k,l,f])=>[l,f?f(a[k]):String(a[k]??'-'),f?f(b[k]):String(b[k]??'-')]);
+const qf=()=>LS('qf')||[];
+let vw=LS('vw')||(innerWidth<760?'m':'d'),user=JSON.parse(SSt.getItem('u')||'null'),resp=SSt.getItem('r')||'',err='',editId=null,msg='',lastSync='',syncErr=false,syncMsg='',sf={from:'',to:''},flt={from:'',to:'',suc:'',grp:'mes'},kf='',foto=null,fotoErr='',upB=false;
 
 function calc(r){const d=r.f_faena?Math.round((new Date(r.f_recepcion)-new Date(r.f_faena))/864e5):null;
  const t=+r.temp,dif=r.peso_remito>0?(r.peso_real-r.peso_remito)/r.peso_remito*100:0;
@@ -75,11 +95,20 @@ function all(){const m=new Map();[...gc(),...(LS('q')||[])].forEach(r=>m.set(r.i
 const gc=()=>CACHE[ck()]||[],sc=v=>{CACHE[ck()]=v;IDB.set(ck(),v)};
 const mergeRows=(a,b)=>{const m=new Map(a.map(r=>[r.id,r]));b.forEach(r=>m.set(r.id,r));return[...m.values()]};
 async function pull(f,full){let out=[],o=0;for(;;){const g=await fetch(B+'/recepciones?select=*&order=created_at.desc,id.asc&limit=1000&offset='+o+f,{headers:HD});if(!g.ok)throw new Error('Leer: '+g.status+' '+(await g.text()).slice(0,140));const a=await g.json();out=out.concat(a);if(!full||a.length<1000||out.length>=200000)break;o+=1000}return out}
-const busy=()=>user&&user.role==='suc'&&['t','pr','pe','ff','otro'].some(i=>{const e=document.getElementById(i);return e&&e.value});
+const busy=()=>user&&user.role==='suc'&&(!!foto||['t','pr','pe','ff','otro','clo','tio'].some(i=>{const e=document.getElementById(i);return e&&e.value}));
+async function upFotos(){if(upB)return;const l=qf();if(!l.length)return;if(!(CONFIG.DRIVE_URL||'').trim())throw new Error('falta configurar DRIVE_URL en config.js');upB=true;
+ try{for(const f of l){const img=await IDB.get('f_'+f.fid);
+  if(img){const r=await fetch(CONFIG.DRIVE_URL.trim(),{method:'POST',body:JSON.stringify({sucursal:f.suc,fecha:f.fecha,id:f.id,fid:f.fid,img:img.split(',')[1]})});
+   const tx=await r.text();let j;try{j=JSON.parse(tx)}catch(e){throw new Error('Drive no responde bien (revisá que el acceso sea "Cualquier persona")')}
+   if(!j.ok)throw new Error('Drive: '+j.error);
+   const q=LS('q')||[],rec=q.find(x=>x.id===f.id)||gc().find(x=>x.id===f.id);
+   if(rec)LS('q',[...q.filter(x=>x.id!==f.id),{...rec,foto_url:j.url}])}
+  LS('qf',qf().filter(x=>x.fid!==f.fid));IDB.del('f_'+f.fid)}}finally{upB=false}}
 async function sync(force){if(force)render();if(!CONFIG.SUPABASE_URL||!navigator.onLine||!user){if(force||!busy())render();return}
+ try{await upFotos();fotoErr=''}catch(e){fotoErr=(e&&e.message)||'sin respuesta'}
  try{const dd=LS('qd')||[];if(dd.length){const r=await fetch(B+'/recepciones?id=in.('+dd.join(',')+')',{method:'DELETE',headers:HD});if(!r.ok)throw new Error('Anular: '+r.status+' '+(await r.text()).slice(0,140));LS('qd',[]);sc(gc().filter(x=>!dd.includes(x.id)))}
   const q=LS('q')||[];
-  if(q.length){const r=await fetch(B+'/recepciones?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q)});if(!r.ok)throw new Error('Guardar: '+r.status+' '+(await r.text()).slice(0,140));LS('q',[])}
+  if(q.length){const r=await fetch(B+'/recepciones?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q.map(fullRow))});if(!r.ok)throw new Error('Guardar: '+r.status+' '+(await r.text()).slice(0,140));LS('q',[])}
   const f=user.role==='suc'?'&sucursal=eq.'+encodeURIComponent(user.n):'';
   const full=Date.now()-lastFull>6e5||!gc().length,rows=await pull(f,full);sc(full?rows:mergeRows(gc(),rows));if(full)lastFull=Date.now();syncErr=false;syncMsg='';lastSync=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}catch(e){syncErr=true;syncMsg=(e&&e.message)||'sin respuesta'}
  if(force||!busy())render()}
@@ -87,9 +116,9 @@ addEventListener('online',()=>sync());addEventListener('offline',()=>{if(user&&!
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 
-function head(sub){const pend=(LS('q')||[]).length;
+function head(sub){const pend=(LS('q')||[]).length,pf=qf().length;
  return `<header><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj48cmVjdCB4PSI2IiB5PSI2IiB3aWR0aD0iMTA4IiBoZWlnaHQ9IjEwOCIgcng9IjI4IiBmaWxsPSIjZmZmIiBzdHJva2U9IiMxNDMwMWYiIHN0cm9rZS13aWR0aD0iOCIvPjx0ZXh0IHg9IjYwIiB5PSI1NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIEJsYWNrLEFyaWFsIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjI0IiBmaWxsPSIjMTQzMDFmIj5DQU1QTzwvdGV4dD48dGV4dCB4PSI2MCIgeT0iODQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCBCbGFjayxBcmlhbCIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzE0MzAxZiI+VkVSREU8L3RleHQ+PC9zdmc+Cg==" alt="Campo Verde"><div><small>CAMPO VERDE</small><h1>Control de Recepción de Carnicería</h1><div style="opacity:.85;font-size:14px;margin-top:4px">${sub}</div></div><span class="sp"></span>
- <button class="vt">${vl()}</button>${user?`${!navigator.onLine?'<span class="off">Sin conexión</span>':''}${pend?`<span class="off">${pend} pendiente(s) de sincronizar</span>`:''}${CONFIG.SUPABASE_URL?(syncErr&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ No se pudo sincronizar: '+esc(syncMsg)+'</span>':(!pend&&lastSync?`<span class="pill">☁ Guardado en la nube ${lastSync}</span>`:'')):'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Modo local: datos solo en este dispositivo</span>'}<span class="pill">CAR-0003 · Rev 2.0</span><button class="btn o s" id="out">Salir</button>`:''}</header>`}
+ <button class="vt">${vl()}</button>${user?`${!navigator.onLine?'<span class="off">Sin conexión</span>':''}${pend?`<span class="off">${pend} pendiente(s) de sincronizar</span>`:''}${pf?`<span class="off">📷 ${pf} foto(s) pendiente(s) de subir${fotoErr&&navigator.onLine?' · '+esc(fotoErr):''}</span>`:''}${CONFIG.SUPABASE_URL?(syncErr&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ No se pudo sincronizar: '+esc(syncMsg)+'</span>':(!pend&&!pf&&lastSync?`<span class="pill">☁ Guardado en la nube ${lastSync}</span>`:'')):'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Modo local: datos solo en este dispositivo</span>'}<span class="pill">CAR-0003 · Rev 2.0</span><button class="btn o s" id="out">Salir</button>`:''}</header>`}
 
 const bv=()=>document.querySelectorAll('.vt').forEach(b=>b.onclick=()=>{vw=vw==='m'?'d':'m';LS('vw',vw);render()});
 const vl=()=>vw==='m'?'🖥 Ver en computadora':'📱 Ver en celular';
@@ -102,16 +131,18 @@ function render(){const a=$('#app');document.body.classList.toggle('mob',vw==='m
   $('#lf').onsubmit=e=>{e.preventDefault();const u=CONFIG.USERS[norm($('#lu').value)];
    if(u&&u.p.toLowerCase()===$('#lp').value.trim().toLowerCase()){user=u;err='';SSt.setItem('u',JSON.stringify(u));IDB.get(ck()).then(v=>{CACHE[ck()]=v||[];lastFull=0;sync(true)})}else{err='Usuario o contraseña incorrectos';render()}};return}
  a.innerHTML=user.role==='suc'?viewSuc():viewCal();
- $('#out').onclick=()=>{['u','r'].forEach(k=>SSt.removeItem(k));user=null;resp='';render()};
+ $('#out').onclick=()=>{['u','r'].forEach(k=>SSt.removeItem(k));user=null;resp='';foto=null;kf='';editId=null;render()};
  user.role==='suc'?bindSuc():bindCal();bv();}
 
 const tag=r=>`<span class="tag ${r.est}">${{ok:'Conforme',dev:'Desviación',nc:'No conforme'}[r.est]}</span>`;
 const yn=b=>`<span class="tag ${b?'nc':'no'}">${b?'SI':'NO'}</span>`;
-const ab=r=>`<button type="button" class="btn o s" data-ed="${r.id}">✏️ Editar</button> <button type="button" class="btn o s dl" data-dl="${r.id}">🗑 Anular</button>`;
-function rows(l,suc,act){if(vw==='m')return l.length?l.map(r=>`<div class="rc"><div class="rt"><b>${esc(r.producto)}</b>${tag(r)}</div><div class="rg"><span>Recepción</span><b>${fd(r.f_recepcion)}</b><span>Faena</span><b>${fd(r.f_faena)}</b><span>Temperatura</span><b>${n1(r.temp)} °C</b><span>Clasif. / Tipif.</span><b>${esc(r.clasif)} · ${esc(r.tipif)}</b><span>Peso remito / real</span><b>${n1(r.peso_remito)} / ${n1(r.peso_real)} Kg</b><span>Dif. peso</span><b>${n1(r.dif)}% ${yn(r.dp)}</b><span>Días desde faena</span><b>${r.dias===null?'-':r.dias}${r.d4?' ⚠':''}</b>${suc?`<span>Sucursal</span><b>${esc(r.sucursal)}</b>`:''}<span>Responsable</span><b>${esc(r.responsable)}</b></div>${act?`<div class="ac">${ab(r)}</div>`:''}</div>`).join(''):'<p class="hint">Sin registros</p>';return `<div class="tw"><table><tr><th>Producto</th><th>Recepción</th><th>Faena</th><th>Temp °C</th><th>Clasif.</th><th>Tipif.</th><th>Peso remito</th><th>Peso real</th><th>Dif %</th><th>Días</th><th>Desvío T</th><th>DP&gt;3%</th>${suc?'<th>Sucursal / Resp.</th>':'<th>Responsable</th>'}${act?'<th>Acciones</th>':''}</tr>
-${l.map(r=>`<tr><td>${esc(r.producto)}</td><td>${fd(r.f_recepcion)}</td><td>${fd(r.f_faena)}</td><td>${n1(r.temp)}</td><td>${esc(r.clasif)}</td><td>${esc(r.tipif)}</td><td>${n1(r.peso_remito)}</td><td>${n1(r.peso_real)}</td><td>${n1(r.dif)}%</td><td>${r.dias===null?'-':`<span class="tag ${r.d4?'nc':'no'}">${r.dias}</span>`}</td><td>${tag(r)}</td><td>${yn(r.dp)}</td><td>${suc?esc(r.sucursal)+' · ':''}${esc(r.responsable)}</td>${act?`<td>${ab(r)}</td>`:''}</tr>`).join('')||'<tr><td colspan="13">Sin registros</td></tr>'}</table></div>`}
+const ab=r=>`<button type="button" class="btn o s" data-ed="${r.id}">✏️ Editar</button>`;
+const fcell=r=>qf().some(x=>x.id===r.id)?'<span class="tag dev">⏳ Pendiente</span>':r.foto_url?`<a href="${esc(r.foto_url)}" target="_blank" rel="noopener">📷 Ver foto</a>`:'<span class="hint">Sin foto</span>';
+const hcell=r=>{const h=hist(r);return h.length?`<details><summary>✏️ ${h.length} modificación${h.length>1?'es':''}</summary><div class="hl">${h.map(m=>`<div><b>${fdt(m.t)} · ${esc(m.u)}</b><br>${(m.c||[]).map(c=>`${esc(c[0])}: ${esc(c[1])} → ${esc(c[2])}`).join('<br>')}</div>`).join('')}</div></details>`:'<span class="tag no">Original</span>'};
+function rows(l,suc,act){if(vw==='m')return l.length?l.map(r=>`<div class="rc"><div class="rt"><b>${esc(r.producto)}</b>${tag(r)}</div><div class="rg"><span>Recepción</span><b>${fd(r.f_recepcion)}</b><span>Faena</span><b>${fd(r.f_faena)}</b><span>Temperatura</span><b>${n1(r.temp)} °C</b><span>Clasif. / Tipif.</span><b>${esc(r.clasif)} · ${esc(r.tipif)}</b><span>Peso remito / real</span><b>${n1(r.peso_remito)} / ${n1(r.peso_real)} Kg</b><span>Dif. peso</span><b>${n1(r.dif)}% ${yn(r.dp)}</b><span>Días desde faena</span><b>${r.dias===null?'-':r.dias}${r.d4?' ⚠':''}</b>${suc?`<span>Sucursal</span><b>${esc(r.sucursal)}</b>`:''}<span>Responsable</span><b>${esc(r.responsable)}</b><span>Foto</span><b>${fcell(r)}</b><span>Modificaciones</span><b>${hcell(r)}</b></div>${act?`<div class="ac">${ab(r)}</div>`:''}</div>`).join(''):'<p class="hint">Sin registros</p>';return `<div class="tw"><table><tr><th>Producto</th><th>Recepción</th><th>Faena</th><th>Temp °C</th><th>Clasif.</th><th>Tipif.</th><th>Peso remito</th><th>Peso real</th><th>Dif %</th><th>Días</th><th>Desvío T</th><th>DP&gt;3%</th>${suc?'<th>Sucursal / Resp.</th>':'<th>Responsable</th>'}<th>Foto</th><th>Modificaciones</th>${act?'<th>Acciones</th>':''}</tr>
+${l.map(r=>`<tr><td>${esc(r.producto)}</td><td>${fd(r.f_recepcion)}</td><td>${fd(r.f_faena)}</td><td>${n1(r.temp)}</td><td>${esc(r.clasif)}</td><td>${esc(r.tipif)}</td><td>${n1(r.peso_remito)}</td><td>${n1(r.peso_real)}</td><td>${n1(r.dif)}%</td><td>${r.dias===null?'-':`<span class="tag ${r.d4?'nc':'no'}">${r.dias}</span>`}</td><td>${tag(r)}</td><td>${yn(r.dp)}</td><td>${suc?esc(r.sucursal)+' · ':''}${esc(r.responsable)}</td><td>${fcell(r)}</td><td>${hcell(r)}</td>${act?`<td>${ab(r)}</td>`:''}</tr>`).join('')||'<tr><td colspan="16">Sin registros</td></tr>'}</table></div>`}
 
-function viewSuc(){const l=all(),h=l.filter(r=>r.f_recepcion===today()),ed=editId?l.find(r=>r.id===editId):null,oo=ed&&!PROD.includes(ed.producto),lf=l.filter(r=>(!sf.from||r.f_recepcion>=sf.from)&&(!sf.to||r.f_recepcion<=sf.to));if(editId&&!ed)editId=null;
+function viewSuc(){const l=all(),h=l.filter(r=>r.f_recepcion===today()||(r.created_at&&new Date(r.created_at).toLocaleDateString('en-CA')===today())),ed=editId?h.find(r=>r.id===editId):null,oo=ed&&!PROD.includes(ed.producto),oc=ed&&!CLA.includes(ed.clasif),ot=ed&&!TIP.includes(ed.tipif),pfE=ed&&qf().some(x=>x.id===ed.id);if(editId&&!ed)editId=null;
  return head(`${user.n} · Formulario de registro`)+`<main>
  <div class="card"><label>Responsable de la carga *</label><input id="resp" value="${esc(resp)}" placeholder="Nombre y apellido"></div>
  <div class="grid two"><form class="card" id="f"><h2>${ed?'Editar recepción':'Nueva recepción'}</h2>${(()=>{const m=msg;msg='';return m?`<div class="off" style="margin-bottom:12px">${m}</div>`:''})()}<div class="grid">
@@ -119,22 +150,22 @@ function viewSuc(){const l=all(),h=l.filter(r=>r.f_recepcion===today()),ed=editI
  <div><label>Fecha de recepción *</label><input type="date" id="fr" value="${ed?ed.f_recepcion:today()}" required></div>
  <div><label>Fecha de faena (opcional)</label><input type="date" id="ff" value="${ed&&ed.f_faena||''}"><div class="hint">Dejar vacío si no figura en la etiqueta</div></div>
  <div><label>Temperatura (°C) *</label><input type="number" step="0.1" inputmode="decimal" id="t" placeholder="0,0" value="${ed?ed.temp:''}" required><div class="hint">Ideal menor a 7 °C</div></div>
- <div><label>Clasificación</label><select id="cl">${['2D-VQ','2D-NT','SIN CLASIFICACIÓN'].map(o=>`<option ${ed&&ed.clasif===o?'selected':''}>${o}</option>`).join('')}</select></div>
- <div><label>Tipificación (L/N°)</label><select id="ti">${['C1','SIN TIPIFICACIÓN'].map(o=>`<option ${ed&&ed.tipif===o?'selected':''}>${o}</option>`).join('')}</select></div>
+ <div><label>Clasificación *</label><select id="cl">${CLA.map(o=>`<option ${ed&&ed.clasif===o?'selected':''}>${o}</option>`).join('')}<option value="__o" ${oc?'selected':''}>Otro…</option></select><input id="clo" placeholder="Escribí la clasificación" value="${oc?esc(ed.clasif):''}" style="display:${oc?'block':'none'};margin-top:6px"></div>
+ <div><label>Tipificación (L/N°) *</label><select id="ti">${TIP.map(o=>`<option ${ed&&ed.tipif===o?'selected':''}>${o}</option>`).join('')}<option value="__o" ${ot?'selected':''}>Otro…</option></select><input id="tio" placeholder="Escribí la tipificación" value="${ot?esc(ed.tipif):''}" style="display:${ot?'block':'none'};margin-top:6px"></div>
  <div><label>Peso remito (Kg) *</label><input type="number" step="0.01" inputmode="decimal" id="pr" value="${ed?ed.peso_remito:''}" required></div>
- <div><label>Peso real (Kg) *</label><input type="number" step="0.01" inputmode="decimal" id="pe" value="${ed?ed.peso_real:''}" required></div></div>
+ <div><label>Peso real (Kg) *</label><input type="number" step="0.01" inputmode="decimal" id="pe" value="${ed?ed.peso_real:''}" required></div>
+ <div style="grid-column:1/-1"><label>Foto de la mercadería *</label><div class="ph"><img id="fpv" alt="Vista previa" src="${foto||''}" style="display:${foto?'block':'none'}"><div><input type="file" id="fo" accept="image/*"><div class="hint" id="fh">${foto?'✔ Foto lista':ed&&(ed.foto_url||pfE)?'Este registro ya tiene foto. Subí otra solo si querés reemplazarla.':'Obligatoria. Sacá la foto con la cámara o elegila de la galería.'}</div></div></div></div></div>
  <br><button class="btn">${ed?'💾 Guardar cambios':'+ Guardar registro'}</button> ${ed?'<button type="button" class="btn o" id="cx">Cancelar</button>':''}<div class="err" id="fe"></div></form>
  <div class="card auto"><h2>Análisis automático</h2><div><span>Desvío T</span><b id="a1">-</b></div><div><span>Días desde faena</span><b id="a2">-</b></div><div><span>Diferencia de peso</span><b id="a3">-</b></div><div><span>Diferencia aceptada (3%)</span><b id="a4">-</b></div><div><span>DP &gt; 3%</span><b id="a5">-</b></div>
  <div class="hint" style="margin-top:12px"><span class="dot" style="background:var(--ok)"></span>T ≤ 7 °C Conforme<br><span class="dot" style="background:var(--dv)"></span>7 &lt; T ≤ 10 °C Desviación<br><span class="dot" style="background:var(--nc)"></span>T &gt; 10 °C No conforme<br>Más de 4 días desde faena → No conformidad</div></div></div>
- <div class="card"><h2>Hoy · ${user.n} <span class="pill" style="background:var(--g)">${h.length}</span></h2>${rows(h,0,1)}</div>
- <div class="card"><h2>Registros previos · ${user.n} <small style="color:var(--mu);font-weight:400">${lf.length===l.length?l.length+' en total':lf.length+' de '+l.length}</small></h2><div class="row" style="margin-bottom:14px"><div><label>Desde</label><input type="date" id="xd" value="${sf.from}"></div><div><label>Hasta</label><input type="date" id="xh" value="${sf.to}"></div><div style="flex:none"><button type="button" class="btn o" id="xc">Quitar filtro</button></div></div>${rows(lf,0,1)}</div></main>`}
+ <div class="card"><h2>Hoy · ${user.n} <span class="pill" style="background:var(--g)">${h.length}</span></h2><div class="hint" style="margin:-8px 0 12px">Si te equivocaste en una carga, tocá ✏️ Editar. Cada cambio queda registrado con el nombre del responsable.</div>${rows(h,0,1)}</div></main>`}
 
 function bindSuc(){const p=$('#prod'),g=id=>$('#'+id).value;
- document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{editId=b.dataset.ed;render();scrollTo(0,0)});
- document.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>{if(!confirm('¿Anular este registro? Se elimina de forma definitiva.'))return;const id=b.dataset.dl;LS('q',(LS('q')||[]).filter(r=>r.id!==id));sc(gc().filter(r=>r.id!==id));LS('qd',[...(LS('qd')||[]),id]);if(editId===id)editId=null;msg='Registro anulado';sync(true)});
-  $('#xd').onchange=e=>{sf.from=e.target.value;render()};$('#xh').onchange=e=>{sf.to=e.target.value;render()};$('#xc').onclick=()=>{sf={from:'',to:''};render()};
- if($('#cx'))$('#cx').onclick=()=>{editId=null;render()};
+ document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{editId=b.dataset.ed;foto=null;render();scrollTo(0,0)});
+ if($('#cx'))$('#cx').onclick=()=>{editId=null;foto=null;render()};
  p.onchange=()=>$('#otro').style.display=p.value==='__o'?'block':'none';
+ [['cl','clo'],['ti','tio']].forEach(([s,i])=>$('#'+s).onchange=()=>$('#'+i).style.display=$('#'+s).value==='__o'?'block':'none');
+ $('#fo').onchange=async e=>{const fl=e.target.files[0];if(!fl)return;$('#fh').textContent='Procesando foto…';try{foto=await comprimir(fl);$('#fpv').src=foto;$('#fpv').style.display='block';$('#fh').textContent='✔ Foto lista ('+Math.round(foto.length*.75/1024)+' KB)'}catch(x){foto=null;$('#fh').textContent='⚠ '+x.message}};
  $('#resp').oninput=e=>{resp=e.target.value;SSt.setItem('r',resp)};
  const live=()=>{const t=+g('t'),pr=+g('pr'),pe=+g('pe'),ff=g('ff'),fr=g('fr');
   if(g('t')!==''){const d=Math.max(0,t-7);$('#a1').innerHTML=tag({est:t<=7?'ok':t<=10?'dev':'nc'})+' '+(t>7?'+'+n1(d)+' °C':'')}
@@ -142,11 +173,17 @@ function bindSuc(){const p=$('#prod'),g=id=>$('#'+id).value;
   if(pr>0&&g('pe')!==''){const df=pe-pr;$('#a3').textContent=n1(df)+' Kg ('+n1(df/pr*100)+'%)';$('#a4').textContent='±'+n1(pr*.03)+' Kg';$('#a5').innerHTML=yn(Math.abs(df/pr)>.03)}};
  ['t','pr','pe','ff','fr'].forEach(i=>$('#'+i).oninput=live);
  if(editId)live();
- $('#f').onsubmit=e=>{e.preventDefault();resp=$('#resp').value.trim();const prod=p.value==='__o'?g('otro').trim():p.value;
+ $('#f').onsubmit=async e=>{e.preventDefault();resp=$('#resp').value.trim();SSt.setItem('r',resp);const prod=p.value==='__o'?g('otro').trim():p.value,cl=g('cl')==='__o'?g('clo').trim():g('cl'),ti=g('ti')==='__o'?g('tio').trim():g('ti');
   if(!resp||!prod){$('#fe').textContent='Completá el responsable y el producto';return}
+  if(!cl||!ti){$('#fe').textContent='Completá la clasificación y la tipificación (si elegiste "Otro…", escribila)';return}
   if(g('ff')&&g('ff')>g('fr')){$('#fe').textContent='La faena no puede ser posterior a la recepción';return}
-  const r={id:editId||(crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const v=Math.random()*16|0;return(c=='x'?v:v&3|8).toString(16)})),sucursal:user.n,responsable:resp,producto:prod,f_recepcion:g('fr'),f_faena:g('ff')||null,temp:+g('t'),clasif:g('cl'),tipif:g('ti'),peso_remito:+g('pr'),peso_real:+g('pe'),created_at:(editId&&(all().find(x=>x.id===editId)||{}).created_at)||new Date().toISOString()};
+  const prev=editId?all().find(x=>x.id===editId):null,pfP=prev&&qf().some(x=>x.id===prev.id);
+  if(!foto&&!(prev&&(prev.foto_url||pfP))){$('#fe').textContent='Falta la foto de la mercadería';return}
+  const id=editId||uid(),r={id,sucursal:user.n,responsable:prev?prev.responsable:resp,producto:prod,f_recepcion:g('fr'),f_faena:g('ff')||null,temp:+g('t'),clasif:cl,tipif:ti,peso_remito:+g('pr'),peso_real:+g('pe'),created_at:(prev&&prev.created_at)||new Date().toISOString(),foto_url:prev?prev.foto_url||null:null,historial:prev?hist(prev):[]};
+  if(prev){const ch=difs(prev,r);if(foto)ch.push(['Foto',prev.foto_url||pfP?'anterior':'sin foto','reemplazada']);if(!ch.length){msg='No hubo cambios para guardar';editId=null;render();return}r.historial=[...hist(prev),{u:resp,t:new Date().toISOString(),c:ch}]}
+  if(foto){const fid=uid();await IDB.set('f_'+fid,foto);qf().filter(x=>x.id===id).forEach(x=>IDB.del('f_'+x.fid));LS('qf',[...qf().filter(x=>x.id!==id),{id,fid,suc:user.n,fecha:r.f_recepcion}]);foto=null}
   LS('q',[...(LS('q')||[]).filter(x=>x.id!==r.id),r]);msg=editId?'Cambios guardados':'Registro guardado';editId=null;sync(true)}}
+function comprimir(file){return new Promise((ok,ko)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const M=1600,k=Math.min(1,M/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);ok(c.toDataURL('image/jpeg',.72))};im.onerror=()=>{URL.revokeObjectURL(u);ko(new Error('No se pudo leer la imagen. Probá de nuevo.'))};im.src=u})}
 
 // ---------- Calidad ----------
 function wk(d){const x=new Date(d+'T00:00');x.setDate(x.getDate()-((x.getDay()+6)%7));return x.toLocaleDateString('en-CA')}
@@ -163,42 +200,46 @@ function donut(c){const t=c.ok+c.dev+c.nc||1,R=80,C=2*Math.PI*R;let o=0;
 
 const dk=d=>`<td style="font-weight:700;color:${d<-0.05?'#a1241f':d>0.05?'#1d6b3a':'inherit'}">${d>0.05?'+':''}${n1(d)}</td>`;
 function ptab(s){const e=Object.entries(s.prod),t=e.reduce((a,[,o])=>({n:a.n+o.n,rem:a.rem+o.rem,real:a.real+o.real}),{n:0,rem:0,real:0});
- return `<div class="tw"><table><tr><th>Producto</th><th>Cant.</th><th>Kg remito</th><th>Kg real</th><th>Dif. kg</th><th>Prom. sem.</th></tr>${e.map(([k,o])=>`<tr><td>${esc(k)}</td><td>${o.n}</td><td>${n1(o.rem)}</td><td>${n1(o.real)}</td>${dk(o.real-o.rem)}<td>${n1(o.n/s.span)}</td></tr>`).join('')||'<tr><td colspan="6">Sin datos</td></tr>'}${e.length?`<tr style="font-weight:700;background:#f1f6f2"><td>Total</td><td>${t.n}</td><td>${n1(t.rem)}</td><td>${n1(t.real)}</td>${dk(t.real-t.rem)}<td>${n1(t.n/s.span)}</td></tr>`:''}</table></div>`}
+ return `<div class="tw"><table><tr><th>Producto</th><th>Cant.</th><th>Kg remito</th><th>Kg real</th><th>Dif. kg</th><th title="Cantidad promedio de recepciones por semana">Cant. prom.</th></tr>${e.map(([k,o])=>`<tr><td>${esc(k)}</td><td>${o.n}</td><td>${n1(o.rem)}</td><td>${n1(o.real)}</td>${dk(o.real-o.rem)}<td>${n1(o.n/s.span)}</td></tr>`).join('')||'<tr><td colspan="6">Sin datos</td></tr>'}${e.length?`<tr style="font-weight:700;background:#f1f6f2"><td>Total</td><td>${t.n}</td><td>${n1(t.rem)}</td><td>${n1(t.real)}</td>${dk(t.real-t.rem)}<td>${n1(t.n/s.span)}</td></tr>`:''}</table></div>`}
 function sto(){const n=all().length,mb=n*0.4/1024,p=mb/500*100;return `<div class="card"><h2>Espacio de almacenamiento</h2><div style="background:#e8efe9;border-radius:99px;height:12px;overflow:hidden"><div style="width:${Math.min(100,Math.max(p,0.5))}%;height:100%;background:${p>=80?'var(--nc)':p>=60?'var(--dv)':'var(--ok)'}"></div></div><div class="hint" style="margin-top:8px">${n.toLocaleString('es-AR')} registros guardados · uso estimado ${mb<10?mb.toFixed(2):Math.round(mb)} MB de 500 MB (${p<1?'menos del 1':Math.round(p)}%) del plan gratuito. ${p>=80?'⚠ Descargá el Excel de cada sucursal y archivá los registros antiguos.':'Hay espacio de sobra: no hace falta borrar registros.'}</div></div>`}
-function viewCal(){const l=filt(),s=stats(l),f1=v=>n1(v)+'%';
+const KF={ok:['T conforme (≤ 7 °C)','ok',r=>r.est==='ok'],dev:['T en desviación (7 a 10 °C)','dev',r=>r.est==='dev'],nc:['T no conforme (> 10 °C)','nc',r=>r.est==='nc'],dp:['Desvío de peso > 3 %','nc',r=>r.dp],d4:['Más de 4 días desde faena','nc',r=>r.d4]};
+function viewCal(){const l=filt(),s=stats(l),f1=v=>n1(v)+'%',N=l.length,pc=v=>n1(v/(N||1)*100)+'%',lt=kf&&KF[kf]?l.filter(KF[kf][2]):l,sn=flt.suc?'Sucursal '+esc(flt.suc):'Todas las sucursales';
+ const K=(k,c,lab,val,s1,s2)=>`<div class="card kpi ${c} ${kf&&kf===k?'act':''}" data-kf="${k}" role="button" tabindex="0" title="${k?'Tocá para ver solo estos registros en la tabla de abajo':'Tocá para ver todos los registros'}"><div class="kl">${lab}</div><b>${val}</b><span>${s1}</span><span>${s2}</span></div>`;
  return head('Perfil Calidad · Análisis de todas las sucursales')+`<main>
  <div class="card"><div class="row"><div><label>Fecha de inicio</label><input type="date" id="fi" value="${flt.from}"></div><div><label>Fecha de fin</label><input type="date" id="fe" value="${flt.to}"></div>
  <div><label>Sucursal</label><select id="fs"><option value="">Todas</option>${['Independencia','Paunero','Arenales','San Martín'].map(x=>`<option ${flt.suc===x?'selected':''}>${x}</option>`).join('')}</select></div>
  <div style="flex:none"><button class="btn o s" id="pw">Esta semana</button> <button class="btn o s" id="pm">Este mes</button> <button class="btn o s" id="pp">Mes anterior</button> <button class="btn o s" id="pc">Todo</button></div>
- <div style="flex:none"><button class="btn" id="xl">⬇ Descargar Excel</button></div></div><div class="hint">${l.length} recepciones en el período · el Excel incluye solo lo filtrado (fechas y sucursal)</div></div>
- <div class="grid k"><div class="card kpi b"><span>Temperatura promedio</span><b>${n1(s.avg)} °C</b><span>Ideal ≤ 7 °C</span></div>
- <div class="card kpi"><span>% Entrega óptima</span><b>${f1(s.p('ok'))}</b><span>Meta ≥ 60%</span></div>
- <div class="card kpi y"><span>% Entrega desviación</span><b>${f1(s.p('dev'))}</b><span>Meta ≤ 35%</span></div>
- <div class="card kpi r"><span>% No conforme</span><b>${f1(s.p('nc'))}</b><span>Meta ≤ 5%</span></div>
- <div class="card kpi b"><span>% Desvío de peso &gt; 3%</span><b>${f1(s.dp/(l.length||1)*100)}</b><span>${s.dp} recepciones · ideal 0</span></div>
- <div class="card kpi b"><span>Más de 4 días desde faena</span><b>${s.d4}</b><span>ideal 0</span></div></div>
- <div class="grid two"><div class="card"><h2>Distribución de temperaturas</h2><div class="row" style="align-items:center;justify-content:center">${donut(s.c)}<div style="flex:1;min-width:200px">${[['ok','Conforme','--ok'],['dev','Desviación','--dv'],['nc','No conforme','--nc']].map(([k,n,c])=>`<div class="leg"><span><span class="dot" style="background:var(${c})"></span>${n}</span><b>${s.c[k]} · ${f1(s.p(k))}</b></div>`).join('')}</div></div></div>
- <div class="card"><h2>Cantidad y kg por producto</h2>${ptab(s)}</div></div>
+ <div style="flex:none"><button class="btn" id="xl">⬇ Descargar Excel</button></div></div><div class="hint">${N} recepciones en el período · el Excel incluye solo lo filtrado (fechas y sucursal) · los porcentajes son sobre el total de recepciones del período</div></div>
+ <div class="grid k">${K('','b','Temperatura promedio',n1(s.avg)+' °C','Ideal ≤ 7 °C',N+' recepciones')}
+ ${K('ok','','% de entregas con T conforme',pc(s.c.ok),'T ≤ 7 °C · meta ≥ 60%',s.c.ok+' de '+N)}
+ ${K('dev','y','% de entregas con T en desviación',pc(s.c.dev),'7 < T ≤ 10 °C · meta ≤ 35%',s.c.dev+' de '+N)}
+ ${K('nc','r','% de entregas con T no conforme',pc(s.c.nc),'T > 10 °C · meta ≤ 5%',s.c.nc+' de '+N)}
+ ${K('dp','b','% de entregas con desvío de peso > 3%',pc(s.dp),'ideal 0%',s.dp+' de '+N)}
+ ${K('d4','b','% de entregas con más de 4 días desde faena',pc(s.d4),'ideal 0%',s.d4+' de '+N)}</div>
+ <div class="grid ds"><div class="card"><h2>Distribución de temperaturas</h2><div class="sn">${sn}</div><div class="fx">${donut(s.c)}<div>${[['ok','Conforme','--ok'],['dev','Desviación','--dv'],['nc','No conforme','--nc']].map(([k,n,c])=>`<div class="leg"><span><span class="dot" style="background:var(${c})"></span>${n}</span><b>${s.c[k]} · ${f1(s.p(k))}</b></div>`).join('')}</div></div></div>
+ <div class="card"><h2>Cantidad y kg por producto</h2><div class="sn">${sn}</div>${ptab(s)}</div></div>
  
- <div class="card"><h2>Registros del período <small style="color:var(--mu);font-weight:400">${l.length} en total</small></h2>${rows(l,1)}</div>${sto()}</main>`}
+ <div class="card" id="reg"><h2>Registros del período <small style="color:var(--mu);font-weight:400">${kf?lt.length+' de '+N:N+' en total'}</small></h2>${kf&&KF[kf]?`<div class="row" style="align-items:center;margin:-4px 0 12px"><span class="tag ${KF[kf][1]}" style="flex:none">Filtro: ${KF[kf][0]}</span><button type="button" class="btn o s" id="kx" style="flex:none">✕ Quitar filtro</button></div>`:'<div class="hint" style="margin:-8px 0 12px">Tocá un indicador de arriba para ver solo esos registros.</div>'}${rows(lt,1)}</div>${sto()}</main>`}
 
 function bindCal(){const set=(a,b)=>{flt.from=a;flt.to=b;render()};
  $('#fi').onchange=e=>set(e.target.value,flt.to);$('#fe').onchange=e=>set(flt.from,e.target.value);
  $('#fs').onchange=e=>{flt.suc=e.target.value;render()};
  $('#pw').onclick=()=>set(wk(today()),today());$('#pm').onclick=()=>set(today().slice(0,8)+'01',today());$('#pp').onclick=()=>{const d=new Date(),a=new Date(d.getFullYear(),d.getMonth()-1,1),b=new Date(d.getFullYear(),d.getMonth(),0);set(a.toLocaleDateString('en-CA'),b.toLocaleDateString('en-CA'))};$('#pc').onclick=()=>set('','');
- $('#xl').onclick=()=>excel(filt(),flt.suc,flt.from,flt.to)}
+ $('#xl').onclick=()=>excel(filt(),flt.suc,flt.from,flt.to);
+ document.querySelectorAll('[data-kf]').forEach(c=>c.onclick=c.onkeydown=e=>{if(e.type==='keydown'&&e.key!=='Enter')return;const k=c.dataset.kf;kf=kf===k?'':k;render();const t=$('#reg');if(kf&&t)t.scrollIntoView({behavior:'smooth',block:'start'})});
+ if($('#kx'))$('#kx').onclick=()=>{kf='';render()}}
 
 function excel(l,suc,from,to){if(typeof XLSX==='undefined'){alert('Para descargar el Excel hace falta conexión la primera vez (se guarda para usarlo después sin señal).');return}const s=stats(l),mes=from?fd(from)+' al '+fd(to||today()):'Todos los períodos';
- const H=['Producto','Fecha de recepción','Fecha de elaboración','Temperatura (°C) ideal ≤ 7°C','Clasificación','Tipificación (L/N°)','Peso (Kg)','Peso real (Kg)','Dif. peso (%)','Días faena','Desvío T','DP > 3%','Sucursal','Responsable'];
+ const H=['Producto','Fecha de recepción','Fecha de elaboración','Temperatura (°C) ideal ≤ 7°C','Clasificación','Tipificación (L/N°)','Peso (Kg)','Peso real (Kg)','Dif. peso (%)','Días faena','Desvío T','DP > 3%','Sucursal','Responsable','Foto (link)','Modificaciones'];
  const E=(n)=>Array(n).fill('');const top=[['CAMPO VERDE',...E(8),'CONTROL DE RECEPCIÓN DE CARNICERÍA',...E(3),'CAR – 0003',''],[...E(14)],[...E(14)]];
  top[0]=['CAMPO VERDE','','','CONTROL DE RECEPCIÓN DE CARNICERÍA',...E(8),'CAR – 0003',''];top[1][12]='Rev: 2.0';top[2][12]='MES: '+mes;
  const ws=XLSX.utils.aoa_to_sheet([...top,['Sucursal','',suc||'Todas','','','Responsable','','Varios',...E(6)],H,
-  ...l.map(r=>[r.producto,fd(r.f_recepcion),fd(r.f_faena),+r.temp,r.clasif,r.tipif,+r.peso_remito,+r.peso_real,+r.dif.toFixed(2),r.dias??'',{ok:'Conforme',dev:'Desviación',nc:'No conforme'}[r.est],r.dp?'SI':'NO',r.sucursal,r.responsable])]);
+  ...l.map(r=>[r.producto,fd(r.f_recepcion),fd(r.f_faena),+r.temp,r.clasif,r.tipif,+r.peso_remito,+r.peso_real,+r.dif.toFixed(2),r.dias??'',{ok:'Conforme',dev:'Desviación',nc:'No conforme'}[r.est],r.dp?'SI':'NO',r.sucursal,r.responsable,r.foto_url||'',hist(r).map(m=>fdt(m.t)+' '+m.u+': '+(m.c||[]).map(c=>c[0]+' '+c[1]+' → '+c[2]).join('; ')).join(' | ')])]);
  ws['!merges']=[{s:{r:0,c:0},e:{r:2,c:2}},{s:{r:0,c:3},e:{r:2,c:11}},{s:{r:0,c:12},e:{r:0,c:13}},{s:{r:1,c:12},e:{r:1,c:13}},{s:{r:2,c:12},e:{r:2,c:13}},{s:{r:3,c:0},e:{r:3,c:1}},{s:{r:3,c:2},e:{r:3,c:4}},{s:{r:3,c:5},e:{r:3,c:6}},{s:{r:3,c:7},e:{r:3,c:13}}];
- ws['!cols']=[16,16,18,18,20,20,12,14,12,10,14,10,16,20].map(w=>({wch:w}));
- const f1=v=>+v.toFixed(1),R=[['RESUMEN · '+mes],['Sucursal',suc||'Todas'],[],['Indicador','Valor','Meta'],['Temperatura promedio (°C)',f1(s.avg),'≤ 7'],['% Entrega óptima (Conforme)',f1(s.p('ok')),'≥ 60'],['% Entrega desviación',f1(s.p('dev')),'≤ 35'],['% No conforme',f1(s.p('nc')),'≤ 5'],['% Desvío de peso > 3%',f1(s.dp/(l.length||1)*100),'0'],['Recepciones con > 4 días desde faena',s.d4,'0'],[],
+ ws['!cols']=[16,16,18,18,20,20,12,14,12,10,14,10,16,20,40,60].map(w=>({wch:w}));
+ const f1=v=>+v.toFixed(1),R=[['RESUMEN · '+mes],['Sucursal',suc||'Todas'],[],['Indicador','Valor','Meta'],['Temperatura promedio (°C)',f1(s.avg),'≤ 7'],['% de entregas con T conforme (≤ 7 °C)',f1(s.p('ok')),'≥ 60'],['% de entregas con T en desviación (7 a 10 °C)',f1(s.p('dev')),'≤ 35'],['% de entregas con T no conforme (> 10 °C)',f1(s.p('nc')),'≤ 5'],['% de entregas con desvío de peso > 3%',f1(s.dp/(l.length||1)*100),'0'],['% de entregas con más de 4 días desde faena',f1(s.d4/(l.length||1)*100),'0'],['Total de recepciones',l.length,''],[],
   ['Producto','Cantidad','Kg remito','Kg real','Dif. kg'],...Object.entries(s.prod).map(([k,o])=>[k,o.n,f1(o.rem),f1(o.real),f1(o.real-o.rem)]),[],['Período ('+(flt.grp==='sem'?'semanal':'mensual')+')','Producto','Cantidad','Kg remito','Kg real'],...s.per.map(o=>[o.k,o.prod,o.n,f1(o.rem),f1(o.real)])];
- const w2=XLSX.utils.aoa_to_sheet(R);w2['!cols']=[36,16,14,14,14].map(w=>({wch:w}));
+ const w2=XLSX.utils.aoa_to_sheet(R);w2['!cols']=[46,16,14,14,14].map(w=>({wch:w}));
  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Registros');XLSX.utils.book_append_sheet(wb,w2,'Resumen');
  XLSX.writeFile(wb,`CAR-0003_${(suc||'Todas').replace(/\s/g,'')}_${today()}.xlsx`)}
 IDB.open().then(async()=>{if(user)CACHE[ck()]=(await IDB.get(ck()))||[];render();if(user)sync()});
