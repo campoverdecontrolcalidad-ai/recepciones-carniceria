@@ -83,6 +83,7 @@ const fdt=t=>{const d=new Date(t);return d.toLocaleDateString('es-AR',{day:'2-di
 const CAMPOS=[['producto','Producto'],['f_recepcion','Fecha de recepción',fd],['f_faena','Fecha de faena',fd],['temp','Temperatura (°C)',n1],['clasif','Clasificación'],['tipif','Tipificación'],['peso_remito','Peso remito (Kg)',n1],['peso_real','Peso real (Kg)',n1]];
 const difs=(a,b)=>CAMPOS.filter(([k,,f])=>f===n1?+a[k]!==+b[k]:String(a[k]??'')!==String(b[k]??'')).map(([k,l,f])=>[l,f?f(a[k]):String(a[k]??'-'),f?f(b[k]):String(b[k]??'-')]);
 const qf=()=>LS('qf')||[];
+const FOTO_DESDE=(CONFIG.FOTO_DESDE||'2026-10-21').trim(),fotoReq=f=>!!f&&f>=FOTO_DESDE;
 let vw=LS('vw')||(innerWidth<760?'m':'d'),user=JSON.parse(SSt.getItem('u')||'null'),resp=SSt.getItem('r')||'',err='',editId=null,msg='',lastSync='',syncErr=false,syncMsg='',sf={from:'',to:''},flt={from:'',to:'',suc:'',grp:'mes'},kf='',foto=null,fotoErr='',upB=false;
 
 function calc(r){const d=r.f_faena?Math.round((new Date(r.f_recepcion)-new Date(r.f_faena))/864e5):null;
@@ -154,7 +155,7 @@ function viewSuc(){const l=all(),h=l.filter(r=>r.f_recepcion===today()||(r.creat
  <div><label>Tipificación (L/N°) *</label><select id="ti">${TIP.map(o=>`<option ${ed&&ed.tipif===o?'selected':''}>${o}</option>`).join('')}<option value="__o" ${ot?'selected':''}>Otro…</option></select><input id="tio" placeholder="Escribí la tipificación" value="${ot?esc(ed.tipif):''}" style="display:${ot?'block':'none'};margin-top:6px"></div>
  <div><label>Peso remito (Kg) *</label><input type="number" step="0.01" inputmode="decimal" id="pr" value="${ed?ed.peso_remito:''}" required></div>
  <div><label>Peso real (Kg) *</label><input type="number" step="0.01" inputmode="decimal" id="pe" value="${ed?ed.peso_real:''}" required></div>
- <div style="grid-column:1/-1"><label>Foto de la mercadería *</label><div class="ph"><img id="fpv" alt="Vista previa" src="${foto||''}" style="display:${foto?'block':'none'}"><div><input type="file" id="fo" accept="image/*"><div class="hint" id="fh">${foto?'✔ Foto lista':ed&&(ed.foto_url||pfE)?'Este registro ya tiene foto. Subí otra solo si querés reemplazarla.':'Obligatoria. Sacá la foto con la cámara o elegila de la galería.'}</div></div></div></div></div>
+ <div style="grid-column:1/-1"><label>Foto de la mercadería <span id="fq">${fotoReq(ed?ed.f_recepcion:today())?'*':'(opcional)'}</span></label><div class="ph"><img id="fpv" alt="Vista previa" src="${foto||''}" style="display:${foto?'block':'none'}"><div><input type="file" id="fo" accept="image/*"><div class="hint" id="fh">${foto?'✔ Foto lista':ed&&(ed.foto_url||pfE)?'Este registro ya tiene foto. Subí otra solo si querés reemplazarla.':'Sacá la foto con la cámara o elegila de la galería.'}</div><div class="hint">Obligatoria para recepciones desde el ${fd(FOTO_DESDE)}. Las recepciones anteriores se pueden cargar sin foto.</div></div></div></div></div>
  <br><button class="btn">${ed?'💾 Guardar cambios':'+ Guardar registro'}</button> ${ed?'<button type="button" class="btn o" id="cx">Cancelar</button>':''}<div class="err" id="fe"></div></form>
  <div class="card auto"><h2>Análisis automático</h2><div><span>Desvío T</span><b id="a1">-</b></div><div><span>Días desde faena</span><b id="a2">-</b></div><div><span>Diferencia de peso</span><b id="a3">-</b></div><div><span>Diferencia aceptada (3%)</span><b id="a4">-</b></div><div><span>DP &gt; 3%</span><b id="a5">-</b></div>
  <div class="hint" style="margin-top:12px"><span class="dot" style="background:var(--ok)"></span>T ≤ 7 °C Conforme<br><span class="dot" style="background:var(--dv)"></span>7 &lt; T ≤ 10 °C Desviación<br><span class="dot" style="background:var(--nc)"></span>T &gt; 10 °C No conforme<br>Más de 4 días desde faena → No conformidad</div></div></div>
@@ -172,13 +173,14 @@ function bindSuc(){const p=$('#prod'),g=id=>$('#'+id).value;
   if(ff&&fr){const d=Math.round((new Date(fr)-new Date(ff))/864e5);$('#a2').innerHTML=`<span class="tag ${d>4?'nc':'no'}">${d}</span>`}
   if(pr>0&&g('pe')!==''){const df=pe-pr;$('#a3').textContent=n1(df)+' Kg ('+n1(df/pr*100)+'%)';$('#a4').textContent='±'+n1(pr*.03)+' Kg';$('#a5').innerHTML=yn(Math.abs(df/pr)>.03)}};
  ['t','pr','pe','ff','fr'].forEach(i=>$('#'+i).oninput=live);
+ $('#fr').addEventListener('input',()=>{$('#fq').textContent=fotoReq(g('fr'))?'*':'(opcional)'});
  if(editId)live();
  $('#f').onsubmit=async e=>{e.preventDefault();resp=$('#resp').value.trim();SSt.setItem('r',resp);const prod=p.value==='__o'?g('otro').trim():p.value,cl=g('cl')==='__o'?g('clo').trim():g('cl'),ti=g('ti')==='__o'?g('tio').trim():g('ti');
   if(!resp||!prod){$('#fe').textContent='Completá el responsable y el producto';return}
   if(!cl||!ti){$('#fe').textContent='Completá la clasificación y la tipificación (si elegiste "Otro…", escribila)';return}
   if(g('ff')&&g('ff')>g('fr')){$('#fe').textContent='La faena no puede ser posterior a la recepción';return}
   const prev=editId?all().find(x=>x.id===editId):null,pfP=prev&&qf().some(x=>x.id===prev.id);
-  if(!foto&&!(prev&&(prev.foto_url||pfP))){$('#fe').textContent='Falta la foto de la mercadería';return}
+  if(fotoReq(g('fr'))&&!foto&&!(prev&&(prev.foto_url||pfP))){$('#fe').textContent='Falta la foto de la mercadería (obligatoria desde el '+fd(FOTO_DESDE)+')';return}
   const id=editId||uid(),r={id,sucursal:user.n,responsable:prev?prev.responsable:resp,producto:prod,f_recepcion:g('fr'),f_faena:g('ff')||null,temp:+g('t'),clasif:cl,tipif:ti,peso_remito:+g('pr'),peso_real:+g('pe'),created_at:(prev&&prev.created_at)||new Date().toISOString(),foto_url:prev?prev.foto_url||null:null,historial:prev?hist(prev):[]};
   if(prev){const ch=difs(prev,r);if(foto)ch.push(['Foto',prev.foto_url||pfP?'anterior':'sin foto','reemplazada']);if(!ch.length){msg='No hubo cambios para guardar';editId=null;render();return}r.historial=[...hist(prev),{u:resp,t:new Date().toISOString(),c:ch}]}
   if(foto){const fid=uid();await IDB.set('f_'+fid,foto);qf().filter(x=>x.id===id).forEach(x=>IDB.del('f_'+x.fid));LS('qf',[...qf().filter(x=>x.id!==id),{id,fid,suc:user.n,fecha:r.f_recepcion}]);foto=null}
