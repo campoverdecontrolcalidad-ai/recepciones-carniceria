@@ -83,6 +83,7 @@ const fdt=t=>{const d=new Date(t);return d.toLocaleDateString('es-AR',{day:'2-di
 const CAMPOS=[['producto','Producto'],['f_recepcion','Fecha de recepción',fd],['f_faena','Fecha de faena',fd],['temp','Temperatura (°C)',n1],['clasif','Clasificación'],['tipif','Tipificación'],['peso_remito','Peso remito (Kg)',n1],['peso_real','Peso real (Kg)',n1]];
 const difs=(a,b)=>CAMPOS.filter(([k,,f])=>f===n1?+a[k]!==+b[k]:String(a[k]??'')!==String(b[k]??'')).map(([k,l,f])=>[l,f?f(a[k]):String(a[k]??'-'),f?f(b[k]):String(b[k]??'-')]);
 const qf=()=>LS('qf')||[];
+let msgT=0;const gm=()=>msg&&Date.now()-msgT<6000?msg:'';
 const FOTO_DESDE=(CONFIG.FOTO_DESDE||'2026-10-21').trim(),fotoReq=f=>!!f&&f>=FOTO_DESDE;
 let vw=LS('vw')||(innerWidth<760?'m':'d'),user=JSON.parse(SSt.getItem('u')||'null'),resp=SSt.getItem('r')||'',err='',editId=null,msg='',lastSync='',syncErr=false,syncMsg='',sf={from:'',to:''},flt={from:'',to:'',suc:'',grp:'mes'},kf='',foto=null,fotoErr='',upB=false;
 
@@ -96,7 +97,7 @@ function all(){const m=new Map();[...gc(),...(LS('q')||[])].forEach(r=>m.set(r.i
 const gc=()=>CACHE[ck()]||[],sc=v=>{CACHE[ck()]=v;IDB.set(ck(),v)};
 const mergeRows=(a,b)=>{const m=new Map(a.map(r=>[r.id,r]));b.forEach(r=>m.set(r.id,r));return[...m.values()]};
 async function pull(f,full){let out=[],o=0;for(;;){const g=await fetch(B+'/recepciones?select=*&order=created_at.desc,id.asc&limit=1000&offset='+o+f,{headers:HD});if(!g.ok)throw new Error('Leer: '+g.status+' '+(await g.text()).slice(0,140));const a=await g.json();out=out.concat(a);if(!full||a.length<1000||out.length>=200000)break;o+=1000}return out}
-const busy=()=>user&&user.role==='suc'&&(!!foto||['t','pr','pe','ff','otro','clo','tio'].some(i=>{const e=document.getElementById(i);return e&&e.value}));
+const busy=()=>user&&(user.role==='suc'||editId)&&(!!foto||['t','pr','pe','ff','otro','clo','tio'].some(i=>{const e=document.getElementById(i);return e&&e.value}));
 async function upFotos(){if(upB)return;const l=qf();if(!l.length)return;if(!(CONFIG.DRIVE_URL||'').trim())throw new Error('falta configurar DRIVE_URL en config.js');upB=true;
  try{for(const f of l){const img=await IDB.get('f_'+f.fid);
   if(img){const r=await fetch(CONFIG.DRIVE_URL.trim(),{method:'POST',body:JSON.stringify({sucursal:f.suc,fecha:f.fecha,id:f.id,fid:f.fid,img:img.split(',')[1]})});
@@ -132,21 +133,19 @@ function render(){const a=$('#app');document.body.classList.toggle('mob',vw==='m
   $('#lf').onsubmit=e=>{e.preventDefault();const u=CONFIG.USERS[norm($('#lu').value)];
    if(u&&u.p.toLowerCase()===$('#lp').value.trim().toLowerCase()){user=u;err='';SSt.setItem('u',JSON.stringify(u));IDB.get(ck()).then(v=>{CACHE[ck()]=v||[];lastFull=0;sync(true)})}else{err='Usuario o contraseña incorrectos';render()}};return}
  a.innerHTML=user.role==='suc'?viewSuc():viewCal();
- $('#out').onclick=()=>{['u','r'].forEach(k=>SSt.removeItem(k));user=null;resp='';foto=null;kf='';editId=null;render()};
+ $('#out').onclick=()=>{['u','r'].forEach(k=>SSt.removeItem(k));user=null;resp='';foto=null;kf='';editId=null;msg='';render()};
  user.role==='suc'?bindSuc():bindCal();bv();}
 
 const tag=r=>`<span class="tag ${r.est}">${{ok:'Conforme',dev:'Desviación',nc:'No conforme'}[r.est]}</span>`;
 const yn=b=>`<span class="tag ${b?'nc':'no'}">${b?'SI':'NO'}</span>`;
-const ab=r=>`<button type="button" class="btn o s" data-ed="${r.id}">✏️ Editar</button>`;
+const ab=r=>`<button type="button" class="btn o s" data-ed="${r.id}">✏️ Editar</button>${user&&user.role==='cal'?` <button type="button" class="btn o s dl" data-dl="${r.id}">🗑 Borrar</button>`:''}`;
 const fcell=r=>qf().some(x=>x.id===r.id)?'<span class="tag dev">⏳ Pendiente</span>':r.foto_url?`<a href="${esc(r.foto_url)}" target="_blank" rel="noopener">📷 Ver foto</a>`:'<span class="hint">Sin foto</span>';
 const hcell=r=>{const h=hist(r);return h.length?`<details><summary>✏️ ${h.length} modificación${h.length>1?'es':''}</summary><div class="hl">${h.map(m=>`<div><b>${fdt(m.t)} · ${esc(m.u)}</b><br>${(m.c||[]).map(c=>`${esc(c[0])}: ${esc(c[1])} → ${esc(c[2])}`).join('<br>')}</div>`).join('')}</div></details>`:'<span class="tag no">Original</span>'};
 function rows(l,suc,act){if(vw==='m')return l.length?l.map(r=>`<div class="rc"><div class="rt"><b>${esc(r.producto)}</b>${tag(r)}</div><div class="rg"><span>Recepción</span><b>${fd(r.f_recepcion)}</b><span>Faena</span><b>${fd(r.f_faena)}</b><span>Temperatura</span><b>${n1(r.temp)} °C</b><span>Clasif. / Tipif.</span><b>${esc(r.clasif)} · ${esc(r.tipif)}</b><span>Peso remito / real</span><b>${n1(r.peso_remito)} / ${n1(r.peso_real)} Kg</b><span>Dif. peso</span><b>${n1(r.dif)}% ${yn(r.dp)}</b><span>Días desde faena</span><b>${r.dias===null?'-':r.dias}${r.d4?' ⚠':''}</b>${suc?`<span>Sucursal</span><b>${esc(r.sucursal)}</b>`:''}<span>Responsable</span><b>${esc(r.responsable)}</b><span>Foto</span><b>${fcell(r)}</b><span>Modificaciones</span><b>${hcell(r)}</b></div>${act?`<div class="ac">${ab(r)}</div>`:''}</div>`).join(''):'<p class="hint">Sin registros</p>';return `<div class="tw"><table><tr><th>Producto</th><th>Recepción</th><th>Faena</th><th>Temp °C</th><th>Clasif.</th><th>Tipif.</th><th>Peso remito</th><th>Peso real</th><th>Dif %</th><th>Días</th><th>Desvío T</th><th>DP&gt;3%</th>${suc?'<th>Sucursal / Resp.</th>':'<th>Responsable</th>'}<th>Foto</th><th>Modificaciones</th>${act?'<th>Acciones</th>':''}</tr>
 ${l.map(r=>`<tr><td>${esc(r.producto)}</td><td>${fd(r.f_recepcion)}</td><td>${fd(r.f_faena)}</td><td>${n1(r.temp)}</td><td>${esc(r.clasif)}</td><td>${esc(r.tipif)}</td><td>${n1(r.peso_remito)}</td><td>${n1(r.peso_real)}</td><td>${n1(r.dif)}%</td><td>${r.dias===null?'-':`<span class="tag ${r.d4?'nc':'no'}">${r.dias}</span>`}</td><td>${tag(r)}</td><td>${yn(r.dp)}</td><td>${suc?esc(r.sucursal)+' · ':''}${esc(r.responsable)}</td><td>${fcell(r)}</td><td>${hcell(r)}</td>${act?`<td>${ab(r)}</td>`:''}</tr>`).join('')||'<tr><td colspan="16">Sin registros</td></tr>'}</table></div>`}
 
-function viewSuc(){const l=all(),h=l.filter(r=>r.f_recepcion===today()||(r.created_at&&new Date(r.created_at).toLocaleDateString('en-CA')===today())),ed=editId?h.find(r=>r.id===editId):null,oo=ed&&!PROD.includes(ed.producto),oc=ed&&!CLA.includes(ed.clasif),ot=ed&&!TIP.includes(ed.tipif),pfE=ed&&qf().some(x=>x.id===ed.id);if(editId&&!ed)editId=null;
- return head(`${user.n} · Formulario de registro`)+`<main>
- <div class="card"><label>Responsable de la carga *</label><input id="resp" value="${esc(resp)}" placeholder="Nombre y apellido"></div>
- <div class="grid two"><form class="card" id="f"><h2>${ed?'Editar recepción':'Nueva recepción'}</h2>${(()=>{const m=msg;msg='';return m?`<div class="off" style="margin-bottom:12px">${m}</div>`:''})()}<div class="grid">
+function formBlock(ed){const oo=ed&&!PROD.includes(ed.producto),oc=ed&&!CLA.includes(ed.clasif),ot=ed&&!TIP.includes(ed.tipif),pfE=ed&&qf().some(x=>x.id===ed.id);
+ return ` <div class="grid two"><form class="card" id="f"><h2>${ed?'Editar recepción'+(user.role==='cal'?' · '+esc(ed.sucursal):''):'Nueva recepción'}</h2>${user.role==='suc'&&gm()?`<div class="off" style="margin-bottom:12px">${gm()}</div>`:''}<div class="grid">
  <div><label>Producto *</label><select id="prod">${PROD.map(p=>`<option ${ed&&ed.producto===p?'selected':''}>${p}</option>`).join('')}<option value="__o" ${oo?'selected':''}>Otro…</option></select><input id="otro" placeholder="Nombre del producto" value="${oo?esc(ed.producto):''}" style="display:${oo?'block':'none'};margin-top:6px"></div>
  <div><label>Fecha de recepción *</label><input type="date" id="fr" value="${ed?ed.f_recepcion:today()}" required></div>
  <div><label>Fecha de faena (opcional)</label><input type="date" id="ff" value="${ed&&ed.f_faena||''}"><div class="hint">Dejar vacío si no figura en la etiqueta</div></div>
@@ -155,14 +154,20 @@ function viewSuc(){const l=all(),h=l.filter(r=>r.f_recepcion===today()||(r.creat
  <div><label>Tipificación (L/N°) *</label><select id="ti">${TIP.map(o=>`<option ${ed&&ed.tipif===o?'selected':''}>${o}</option>`).join('')}<option value="__o" ${ot?'selected':''}>Otro…</option></select><input id="tio" placeholder="Escribí la tipificación" value="${ot?esc(ed.tipif):''}" style="display:${ot?'block':'none'};margin-top:6px"></div>
  <div><label>Peso remito (Kg) *</label><input type="number" step="0.01" inputmode="decimal" id="pr" value="${ed?ed.peso_remito:''}" required></div>
  <div><label>Peso real (Kg) *</label><input type="number" step="0.01" inputmode="decimal" id="pe" value="${ed?ed.peso_real:''}" required></div>
- <div style="grid-column:1/-1"><label>Foto de la mercadería <span id="fq">${fotoReq(ed?ed.f_recepcion:today())?'*':'(opcional)'}</span></label><div class="ph"><img id="fpv" alt="Vista previa" src="${foto||''}" style="display:${foto?'block':'none'}"><div><input type="file" id="fo" accept="image/*"><div class="hint" id="fh">${foto?'✔ Foto lista':ed&&(ed.foto_url||pfE)?'Este registro ya tiene foto. Subí otra solo si querés reemplazarla.':'Sacá la foto con la cámara o elegila de la galería.'}</div><div class="hint">Obligatoria para recepciones desde el ${fd(FOTO_DESDE)}. Las recepciones anteriores se pueden cargar sin foto.</div></div></div></div></div>
+ <div style="grid-column:1/-1"><label>Foto de la mercadería <span id="fq">${user.role==='suc'&&fotoReq(ed?ed.f_recepcion:today())?'*':'(opcional)'}</span></label><div class="ph"><img id="fpv" alt="Vista previa" src="${foto||''}" style="display:${foto?'block':'none'}"><div><input type="file" id="fo" accept="image/*"><div class="hint" id="fh">${foto?'✔ Foto lista':ed&&(ed.foto_url||pfE)?'Este registro ya tiene foto. Subí otra solo si querés reemplazarla.':'Sacá la foto con la cámara o elegila de la galería.'}</div><div class="hint">Obligatoria para recepciones desde el ${fd(FOTO_DESDE)}. Las recepciones anteriores se pueden cargar sin foto.</div></div></div></div></div>
  <br><button class="btn">${ed?'💾 Guardar cambios':'+ Guardar registro'}</button> ${ed?'<button type="button" class="btn o" id="cx">Cancelar</button>':''}<div class="err" id="fe"></div></form>
  <div class="card auto"><h2>Análisis automático</h2><div><span>Desvío T</span><b id="a1">-</b></div><div><span>Días desde faena</span><b id="a2">-</b></div><div><span>Diferencia de peso</span><b id="a3">-</b></div><div><span>Diferencia aceptada (3%)</span><b id="a4">-</b></div><div><span>DP &gt; 3%</span><b id="a5">-</b></div>
  <div class="hint" style="margin-top:12px"><span class="dot" style="background:var(--ok)"></span>T ≤ 7 °C Conforme<br><span class="dot" style="background:var(--dv)"></span>7 &lt; T ≤ 10 °C Desviación<br><span class="dot" style="background:var(--nc)"></span>T &gt; 10 °C No conforme<br>Más de 4 días desde faena → No conformidad</div></div></div>
+`}
+function viewSuc(){const l=all(),h=l.filter(r=>r.f_recepcion===today()||(r.created_at&&new Date(r.created_at).toLocaleDateString('en-CA')===today())),ed=editId?h.find(r=>r.id===editId):null;if(editId&&!ed)editId=null;
+ return head(`${user.n} · Formulario de registro`)+`<main>
+ <div class="card"><label>Responsable de la carga *</label><input id="resp" value="${esc(resp)}" placeholder="Nombre y apellido"></div>
+${formBlock(ed)}
  <div class="card"><h2>Hoy · ${user.n} <span class="pill" style="background:var(--g)">${h.length}</span></h2><div class="hint" style="margin:-8px 0 12px">Si te equivocaste en una carga, tocá ✏️ Editar. Cada cambio queda registrado con el nombre del responsable.</div>${rows(h,0,1)}</div></main>`}
 
-function bindSuc(){const p=$('#prod'),g=id=>$('#'+id).value;
- document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{editId=b.dataset.ed;foto=null;render();scrollTo(0,0)});
+function bindSuc(){bindEd();bindForm()}
+const bindEd=()=>document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{editId=b.dataset.ed;foto=null;render();scrollTo(0,0)});
+function bindForm(){const p=$('#prod'),g=id=>$('#'+id).value;
  if($('#cx'))$('#cx').onclick=()=>{editId=null;foto=null;render()};
  p.onchange=()=>$('#otro').style.display=p.value==='__o'?'block':'none';
  [['cl','clo'],['ti','tio']].forEach(([s,i])=>$('#'+s).onchange=()=>$('#'+i).style.display=$('#'+s).value==='__o'?'block':'none');
@@ -173,18 +178,18 @@ function bindSuc(){const p=$('#prod'),g=id=>$('#'+id).value;
   if(ff&&fr){const d=Math.round((new Date(fr)-new Date(ff))/864e5);$('#a2').innerHTML=`<span class="tag ${d>4?'nc':'no'}">${d}</span>`}
   if(pr>0&&g('pe')!==''){const df=pe-pr;$('#a3').textContent=n1(df)+' Kg ('+n1(df/pr*100)+'%)';$('#a4').textContent='±'+n1(pr*.03)+' Kg';$('#a5').innerHTML=yn(Math.abs(df/pr)>.03)}};
  ['t','pr','pe','ff','fr'].forEach(i=>$('#'+i).oninput=live);
- $('#fr').addEventListener('input',()=>{$('#fq').textContent=fotoReq(g('fr'))?'*':'(opcional)'});
+ $('#fr').addEventListener('input',()=>{$('#fq').textContent=user.role==='suc'&&fotoReq(g('fr'))?'*':'(opcional)'});
  if(editId)live();
  $('#f').onsubmit=async e=>{e.preventDefault();resp=$('#resp').value.trim();SSt.setItem('r',resp);const prod=p.value==='__o'?g('otro').trim():p.value,cl=g('cl')==='__o'?g('clo').trim():g('cl'),ti=g('ti')==='__o'?g('tio').trim():g('ti');
-  if(!resp||!prod){$('#fe').textContent='Completá el responsable y el producto';return}
+  if(!resp||!prod){$('#fe').textContent=user.role==='cal'?'Completá tu nombre (quién modifica) y el producto':'Completá el responsable y el producto';return}
   if(!cl||!ti){$('#fe').textContent='Completá la clasificación y la tipificación (si elegiste "Otro…", escribila)';return}
   if(g('ff')&&g('ff')>g('fr')){$('#fe').textContent='La faena no puede ser posterior a la recepción';return}
   const prev=editId?all().find(x=>x.id===editId):null,pfP=prev&&qf().some(x=>x.id===prev.id);
-  if(fotoReq(g('fr'))&&!foto&&!(prev&&(prev.foto_url||pfP))){$('#fe').textContent='Falta la foto de la mercadería (obligatoria desde el '+fd(FOTO_DESDE)+')';return}
-  const id=editId||uid(),r={id,sucursal:user.n,responsable:prev?prev.responsable:resp,producto:prod,f_recepcion:g('fr'),f_faena:g('ff')||null,temp:+g('t'),clasif:cl,tipif:ti,peso_remito:+g('pr'),peso_real:+g('pe'),created_at:(prev&&prev.created_at)||new Date().toISOString(),foto_url:prev?prev.foto_url||null:null,historial:prev?hist(prev):[]};
-  if(prev){const ch=difs(prev,r);if(foto)ch.push(['Foto',prev.foto_url||pfP?'anterior':'sin foto','reemplazada']);if(!ch.length){msg='No hubo cambios para guardar';editId=null;render();return}r.historial=[...hist(prev),{u:resp,t:new Date().toISOString(),c:ch}]}
-  if(foto){const fid=uid();await IDB.set('f_'+fid,foto);qf().filter(x=>x.id===id).forEach(x=>IDB.del('f_'+x.fid));LS('qf',[...qf().filter(x=>x.id!==id),{id,fid,suc:user.n,fecha:r.f_recepcion}]);foto=null}
-  LS('q',[...(LS('q')||[]).filter(x=>x.id!==r.id),r]);msg=editId?'Cambios guardados':'Registro guardado';editId=null;sync(true)}}
+  if(user.role==='suc'&&fotoReq(g('fr'))&&!foto&&!(prev&&(prev.foto_url||pfP))){$('#fe').textContent='Falta la foto de la mercadería (obligatoria desde el '+fd(FOTO_DESDE)+')';return}
+  const id=editId||uid(),r={id,sucursal:prev?prev.sucursal:user.n,responsable:prev?prev.responsable:resp,producto:prod,f_recepcion:g('fr'),f_faena:g('ff')||null,temp:+g('t'),clasif:cl,tipif:ti,peso_remito:+g('pr'),peso_real:+g('pe'),created_at:(prev&&prev.created_at)||new Date().toISOString(),foto_url:prev?prev.foto_url||null:null,historial:prev?hist(prev):[]};
+  if(prev){const ch=difs(prev,r);if(foto)ch.push(['Foto',prev.foto_url||pfP?'anterior':'sin foto','reemplazada']);if(!ch.length){msg='No hubo cambios para guardar';msgT=Date.now();editId=null;render();return}r.historial=[...hist(prev),{u:user.role==='cal'?resp+' (Calidad)':resp,t:new Date().toISOString(),c:ch}]}
+  if(foto){const fid=uid();await IDB.set('f_'+fid,foto);qf().filter(x=>x.id===id).forEach(x=>IDB.del('f_'+x.fid));LS('qf',[...qf().filter(x=>x.id!==id),{id,fid,suc:r.sucursal,fecha:r.f_recepcion}]);foto=null}
+  LS('q',[...(LS('q')||[]).filter(x=>x.id!==r.id),r]);msg=editId?'Cambios guardados':'Registro guardado';msgT=Date.now();editId=null;sync(true)}}
 function comprimir(file){return new Promise((ok,ko)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const M=1600,k=Math.min(1,M/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);ok(c.toDataURL('image/jpeg',.72))};im.onerror=()=>{URL.revokeObjectURL(u);ko(new Error('No se pudo leer la imagen. Probá de nuevo.'))};im.src=u})}
 
 // ---------- Calidad ----------
@@ -207,7 +212,9 @@ function sto(){const n=all().length,mb=n*0.4/1024,p=mb/500*100;return `<div clas
 const KF={ok:['T conforme (≤ 7 °C)','ok',r=>r.est==='ok'],dev:['T en desviación (7 a 10 °C)','dev',r=>r.est==='dev'],nc:['T no conforme (> 10 °C)','nc',r=>r.est==='nc'],dp:['Desvío de peso > 3 %','nc',r=>r.dp],d4:['Más de 4 días desde faena','nc',r=>r.d4]};
 function viewCal(){const l=filt(),s=stats(l),f1=v=>n1(v)+'%',N=l.length,pc=v=>n1(v/(N||1)*100)+'%',lt=kf&&KF[kf]?l.filter(KF[kf][2]):l,sn=flt.suc?'Sucursal '+esc(flt.suc):'Todas las sucursales';
  const K=(k,c,lab,val,s1,s2)=>`<div class="card kpi ${c} ${kf&&kf===k?'act':''}" data-kf="${k}" role="button" tabindex="0" title="${k?'Tocá para ver solo estos registros en la tabla de abajo':'Tocá para ver todos los registros'}"><div class="kl">${lab}</div><b>${val}</b><span>${s1}</span><span>${s2}</span></div>`;
- return head('Perfil Calidad · Análisis de todas las sucursales')+`<main>
+ const ed=editId?all().find(r=>r.id===editId):null;if(editId&&!ed)editId=null;const m=gm();
+ return head('Perfil Calidad · Análisis de todas las sucursales')+`<main>${m?`<div class="off">${esc(m)}</div>`:''}
+ ${ed?`<div class="card"><label>Quién modifica (Calidad) *</label><input id="resp" value="${esc(resp)}" placeholder="Nombre y apellido"><div class="hint">Queda registrado en la columna Modificaciones como "Nombre (Calidad)".</div></div>${formBlock(ed)}`:''}
  <div class="card"><div class="row"><div><label>Fecha de inicio</label><input type="date" id="fi" value="${flt.from}"></div><div><label>Fecha de fin</label><input type="date" id="fe" value="${flt.to}"></div>
  <div><label>Sucursal</label><select id="fs"><option value="">Todas</option>${['Independencia','Paunero','Arenales','San Martín'].map(x=>`<option ${flt.suc===x?'selected':''}>${x}</option>`).join('')}</select></div>
  <div style="flex:none"><button class="btn o s" id="pw">Esta semana</button> <button class="btn o s" id="pm">Este mes</button> <button class="btn o s" id="pp">Mes anterior</button> <button class="btn o s" id="pc">Todo</button></div>
@@ -221,13 +228,17 @@ function viewCal(){const l=filt(),s=stats(l),f1=v=>n1(v)+'%',N=l.length,pc=v=>n1
  <div class="grid ds"><div class="card"><h2>Distribución de temperaturas</h2><div class="sn">${sn}</div><div class="fx">${donut(s.c)}<div>${[['ok','Conforme','--ok'],['dev','Desviación','--dv'],['nc','No conforme','--nc']].map(([k,n,c])=>`<div class="leg"><span><span class="dot" style="background:var(${c})"></span>${n}</span><b>${s.c[k]} · ${f1(s.p(k))}</b></div>`).join('')}</div></div></div>
  <div class="card"><h2>Cantidad y kg por producto</h2><div class="sn">${sn}</div>${ptab(s)}</div></div>
  
- <div class="card" id="reg"><h2>Registros del período <small style="color:var(--mu);font-weight:400">${kf?lt.length+' de '+N:N+' en total'}</small></h2>${kf&&KF[kf]?`<div class="row" style="align-items:center;margin:-4px 0 12px"><span class="tag ${KF[kf][1]}" style="flex:none">Filtro: ${KF[kf][0]}</span><button type="button" class="btn o s" id="kx" style="flex:none">✕ Quitar filtro</button></div>`:'<div class="hint" style="margin:-8px 0 12px">Tocá un indicador de arriba para ver solo esos registros.</div>'}${rows(lt,1)}</div>${sto()}</main>`}
+ <div class="card" id="reg"><h2>Registros del período <small style="color:var(--mu);font-weight:400">${kf?lt.length+' de '+N:N+' en total'}</small></h2>${kf&&KF[kf]?`<div class="row" style="align-items:center;margin:-4px 0 12px"><span class="tag ${KF[kf][1]}" style="flex:none">Filtro: ${KF[kf][0]}</span><button type="button" class="btn o s" id="kx" style="flex:none">✕ Quitar filtro</button></div>`:'<div class="hint" style="margin:-8px 0 12px">Tocá un indicador de arriba para ver solo esos registros.</div>'}${rows(lt,1,1)}</div>${sto()}</main>`}
 
 function bindCal(){const set=(a,b)=>{flt.from=a;flt.to=b;render()};
  $('#fi').onchange=e=>set(e.target.value,flt.to);$('#fe').onchange=e=>set(flt.from,e.target.value);
  $('#fs').onchange=e=>{flt.suc=e.target.value;render()};
  $('#pw').onclick=()=>set(wk(today()),today());$('#pm').onclick=()=>set(today().slice(0,8)+'01',today());$('#pp').onclick=()=>{const d=new Date(),a=new Date(d.getFullYear(),d.getMonth()-1,1),b=new Date(d.getFullYear(),d.getMonth(),0);set(a.toLocaleDateString('en-CA'),b.toLocaleDateString('en-CA'))};$('#pc').onclick=()=>set('','');
  $('#xl').onclick=()=>excel(filt(),flt.suc,flt.from,flt.to);
+ bindEd();if(editId)bindForm();
+ document.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>{const id=b.dataset.dl,r=all().find(x=>x.id===id);if(!r)return;
+  if(!confirm(`¿Borrar definitivamente este registro?\n\n${r.sucursal} · ${r.producto} · ${fd(r.f_recepcion)} · ${n1(r.temp)} °C · resp. ${r.responsable}\n\nNo se puede deshacer.`))return;
+  LS('q',(LS('q')||[]).filter(x=>x.id!==id));qf().filter(x=>x.id===id).forEach(x=>IDB.del('f_'+x.fid));LS('qf',qf().filter(x=>x.id!==id));sc(gc().filter(x=>x.id!==id));LS('qd',[...(LS('qd')||[]),id]);if(editId===id)editId=null;msg='Registro borrado';msgT=Date.now();sync(true)});
  document.querySelectorAll('[data-kf]').forEach(c=>c.onclick=c.onkeydown=e=>{if(e.type==='keydown'&&e.key!=='Enter')return;const k=c.dataset.kf;kf=kf===k?'':k;render();const t=$('#reg');if(kf&&t)t.scrollIntoView({behavior:'smooth',block:'start'})});
  if($('#kx'))$('#kx').onclick=()=>{kf='';render()}}
 
