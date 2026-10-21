@@ -74,7 +74,7 @@ const today=()=>new Date().toLocaleDateString('en-CA');
 const fd=d=>d?d.split('-').reverse().join('/'):'-';
 const n1=v=>(+v).toLocaleString('es-AR',{maximumFractionDigits:1});
 const SK=(CONFIG.SUPABASE_KEY||'').trim(),B=(CONFIG.SUPABASE_URL||'').trim().replace(/\/+$/,'').replace(/\/rest\/v1$/,'')+'/rest/v1',HD={apikey:SK,'Content-Type':'application/json',...(SK.startsWith('eyJ')?{Authorization:'Bearer '+SK}:{})};
-const PROD=['Media Res','Parrillero','Cuarto','Paleta','Bife'],CLA=['2D-VQ','2D-NT','SIN CLASIFICACIÓN'],TIP=['C1','SIN TIPIFICACIÓN'];
+const PROD=['Media Res','Parrillero','Cuarto','Paleta','Bife','Asado'],CLA=['2D-VQ','2D-NT','SIN CLASIFICACIÓN'],TIP=['C1','SIN TIPIFICACIÓN'];
 const DCOLS=['id','sucursal','responsable','producto','f_recepcion','f_faena','temp','clasif','tipif','peso_remito','peso_real','created_at','foto_url','historial'];
 const fullRow=r=>{const o={};DCOLS.forEach(k=>o[k]=r[k]===undefined?(k==='historial'?[]:null):r[k]);return o};
 const uid=()=>crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const v=Math.random()*16|0;return(c=='x'?v:v&3|8).toString(16)});
@@ -83,6 +83,7 @@ const fdt=t=>{const d=new Date(t);return d.toLocaleDateString('es-AR',{day:'2-di
 const CAMPOS=[['producto','Producto'],['f_recepcion','Fecha de recepción',fd],['f_faena','Fecha de faena',fd],['temp','Temperatura (°C)',n1],['clasif','Clasificación'],['tipif','Tipificación'],['peso_remito','Peso remito (Kg)',n1],['peso_real','Peso real (Kg)',n1]];
 const difs=(a,b)=>CAMPOS.filter(([k,,f])=>f===n1?+a[k]!==+b[k]:String(a[k]??'')!==String(b[k]??'')).map(([k,l,f])=>[l,f?f(a[k]):String(a[k]??'-'),f?f(b[k]):String(b[k]??'-')]);
 const qf=()=>LS('qf')||[];
+const pname=t=>{t=String(t||'').trim().replace(/\s+/g,' ');const k=norm(t),f=PROD.find(x=>norm(x)===k);return f||(t?t[0].toUpperCase()+t.slice(1).toLowerCase():t)};
 let msgT=0;const gm=()=>msg&&Date.now()-msgT<6000?msg:'';
 const FOTO_DESDE=(CONFIG.FOTO_DESDE||'').trim(),fotoReq=f=>!!FOTO_DESDE&&!!f&&f>=FOTO_DESDE;
 let vw=LS('vw')||(innerWidth<760?'m':'d'),user=JSON.parse(SSt.getItem('u')||'null'),resp=SSt.getItem('r')||'',err='',editId=null,msg='',lastSync='',syncErr=false,syncMsg='',sf={from:'',to:''},flt={from:'',to:'',suc:'',grp:'mes'},kf='',foto=null,fotoErr='',upB=false;
@@ -146,7 +147,7 @@ ${l.map(r=>`<tr><td>${esc(r.producto)}</td><td>${fd(r.f_recepcion)}</td><td>${fd
 
 function formBlock(ed){const oo=ed&&!PROD.includes(ed.producto),oc=ed&&!CLA.includes(ed.clasif),ot=ed&&!TIP.includes(ed.tipif),pfE=ed&&qf().some(x=>x.id===ed.id);
  return ` <div class="grid two"><form class="card" id="f"><h2>${ed?'Editar recepción'+(user.role==='cal'?' · '+esc(ed.sucursal):''):'Nueva recepción'}</h2>${user.role==='suc'&&gm()?`<div class="off" style="margin-bottom:12px">${gm()}</div>`:''}<div class="grid">
- <div><label>Producto *</label><select id="prod">${PROD.map(p=>`<option ${ed&&ed.producto===p?'selected':''}>${p}</option>`).join('')}<option value="__o" ${oo?'selected':''}>Otro…</option></select><input id="otro" placeholder="Nombre del producto" value="${oo?esc(ed.producto):''}" style="display:${oo?'block':'none'};margin-top:6px"></div>
+ <div><label>Producto *</label><select id="prod">${PROD.map(p=>`<option ${ed&&ed.producto===p?'selected':''}>${p}</option>`).join('')}<option value="__o" ${oo?'selected':''}>Otro…</option></select><input id="otro" placeholder="Nombre del producto" value="${oo?esc(ed.producto):''}" style="display:${oo?'block':'none'};margin-top:6px"><div class="hint" id="oth" style="display:${oo?'block':'none'}">Mayúsculas, tildes y espacios no importan: "asado de tira" y "ASADO DE TIRA" se cuentan como el mismo producto.</div></div>
  <div><label>Fecha de recepción *</label><input type="date" id="fr" value="${ed?ed.f_recepcion:today()}" required></div>
  <div><label>Fecha de faena (opcional)</label><input type="date" id="ff" value="${ed&&ed.f_faena||''}"><div class="hint">Dejar vacío si no figura en la etiqueta</div></div>
  <div><label>Temperatura (°C) *</label><input type="number" step="0.1" inputmode="decimal" id="t" placeholder="0,0" value="${ed?ed.temp:''}" required><div class="hint">Ideal menor a 7 °C</div></div>
@@ -169,7 +170,7 @@ function bindSuc(){bindEd();bindForm()}
 const bindEd=()=>document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{editId=b.dataset.ed;foto=null;render();scrollTo(0,0)});
 function bindForm(){const p=$('#prod'),g=id=>$('#'+id).value;
  if($('#cx'))$('#cx').onclick=()=>{editId=null;foto=null;render()};
- p.onchange=()=>$('#otro').style.display=p.value==='__o'?'block':'none';
+ p.onchange=()=>{$('#otro').style.display=$('#oth').style.display=p.value==='__o'?'block':'none'};
  [['cl','clo'],['ti','tio']].forEach(([s,i])=>$('#'+s).onchange=()=>$('#'+i).style.display=$('#'+s).value==='__o'?'block':'none');
  $('#fo').onchange=async e=>{const fl=e.target.files[0];if(!fl)return;$('#fh').textContent='Procesando foto…';try{foto=await comprimir(fl);$('#fpv').src=foto;$('#fpv').style.display='block';$('#fh').textContent='✔ Foto lista ('+Math.round(foto.length*.75/1024)+' KB)'}catch(x){foto=null;$('#fh').textContent='⚠ '+x.message}};
  $('#resp').oninput=e=>{resp=e.target.value;SSt.setItem('r',resp)};
@@ -180,7 +181,7 @@ function bindForm(){const p=$('#prod'),g=id=>$('#'+id).value;
  ['t','pr','pe','ff','fr'].forEach(i=>$('#'+i).oninput=live);
  $('#fr').addEventListener('input',()=>{$('#fq').textContent=user.role==='suc'&&fotoReq(g('fr'))?'*':'(opcional)'});
  if(editId)live();
- $('#f').onsubmit=async e=>{e.preventDefault();resp=$('#resp').value.trim();SSt.setItem('r',resp);const prod=p.value==='__o'?g('otro').trim():p.value,cl=g('cl')==='__o'?g('clo').trim():g('cl'),ti=g('ti')==='__o'?g('tio').trim():g('ti');
+ $('#f').onsubmit=async e=>{e.preventDefault();resp=$('#resp').value.trim();SSt.setItem('r',resp);const prod=p.value==='__o'?pname(g('otro')):p.value,cl=g('cl')==='__o'?g('clo').trim():g('cl'),ti=g('ti')==='__o'?g('tio').trim():g('ti');
   if(!resp||!prod){$('#fe').textContent=user.role==='cal'?'Completá tu nombre (quién modifica) y el producto':'Completá el responsable y el producto';return}
   if(!cl||!ti){$('#fe').textContent='Completá la clasificación y la tipificación (si elegiste "Otro…", escribila)';return}
   if(g('ff')&&g('ff')>g('fr')){$('#fe').textContent='La faena no puede ser posterior a la recepción';return}
@@ -197,9 +198,10 @@ function wk(d){const x=new Date(d+'T00:00');x.setDate(x.getDate()-((x.getDay()+6
 function filt(){return all().filter(r=>(!flt.from||r.f_recepcion>=flt.from)&&(!flt.to||r.f_recepcion<=flt.to)&&(!flt.suc||r.sucursal===flt.suc))}
 function stats(l){const c={ok:0,dev:0,nc:0};l.forEach(r=>c[r.est]++);const n=l.length||1,p=k=>c[k]/l.length*100||0;
  const dp=l.filter(r=>r.dp).length,d4=l.filter(r=>r.d4).length,prod={};
- l.forEach(r=>{const o=prod[r.producto]??={n:0,rem:0,real:0};o.n++;o.rem+=+r.peso_remito;o.real+=+r.peso_real});
+ const nm={},pn=x=>nm[norm(String(x||''))]??=pname(x);
+ l.forEach(r=>{const o=prod[pn(r.producto)]??={n:0,rem:0,real:0};o.n++;o.rem+=+r.peso_remito;o.real+=+r.peso_real});
  const per={};l.forEach(r=>{const k=flt.grp==='sem'?'Sem. '+fd(wk(r.f_recepcion)):r.f_recepcion.slice(0,7).split('-').reverse().join('/');
-  const o=per[k+'|'+r.producto]??={k,prod:r.producto,n:0,rem:0,real:0};o.n++;o.rem+=+r.peso_remito;o.real+=+r.peso_real});
+  const o=per[k+'|'+pn(r.producto)]??={k,prod:pn(r.producto),n:0,rem:0,real:0};o.n++;o.rem+=+r.peso_remito;o.real+=+r.peso_real});
  const span=l.length?(new Date(Math.max(...l.map(r=>new Date(r.f_recepcion))))-new Date(Math.min(...l.map(r=>new Date(r.f_recepcion)))))/6048e5+1:1;
  return{c,p,dp,d4,prod,per:Object.values(per).sort((a,b)=>b.k.localeCompare(a.k)),avg:l.reduce((s,r)=>s+ +r.temp,0)/n,span:Math.max(1,Math.ceil(span))}}
 function donut(c){const t=c.ok+c.dev+c.nc||1,R=80,C=2*Math.PI*R;let o=0;
