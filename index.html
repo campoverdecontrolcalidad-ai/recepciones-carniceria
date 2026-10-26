@@ -83,6 +83,9 @@ const fdt=t=>{const d=new Date(t);return d.toLocaleDateString('es-AR',{day:'2-di
 const CAMPOS=[['producto','Producto'],['f_recepcion','Fecha de recepción',fd],['f_faena','Fecha de faena',fd],['temp','Temperatura (°C)',n1],['clasif','Clasificación'],['tipif','Tipificación'],['peso_remito','Peso remito (Kg)',n1],['peso_real','Peso real (Kg)',n1]];
 const difs=(a,b)=>CAMPOS.filter(([k,,f])=>f===n1?+a[k]!==+b[k]:String(a[k]??'')!==String(b[k]??'')).map(([k,l,f])=>[l,f?f(a[k]):String(a[k]??'-'),f?f(b[k]):String(b[k]??'-')]);
 const qf=()=>LS('qf')||[];
+const FF=['prod','otro','fr','ff','t','cl','clo','ti','tio','pr','pe'];
+const getDr=()=>user?LS('dr_'+user.n):null,clrDr=()=>{if(user){LS('dr_'+user.n,null);IDB.del('df_'+user.n)}foto=null};
+const saveDr=()=>{if(!user||!$('#f'))return;const f={};FF.forEach(k=>{const e=$('#'+k);if(e)f[k]=e.value});LS('dr_'+user.n,{id:editId||'',f})};
 const pname=t=>{t=String(t||'').trim().replace(/\s+/g,' ');const k=norm(t),f=PROD.find(x=>norm(x)===k);return f||(t?t[0].toUpperCase()+t.slice(1).toLowerCase():t)};
 let msgT=0;const gm=()=>msg&&Date.now()-msgT<6000?msg:'';
 const FOTO_DESDE=(CONFIG.FOTO_DESDE||'').trim(),fotoReq=f=>!!FOTO_DESDE&&!!f&&f>=FOTO_DESDE;
@@ -98,7 +101,7 @@ function all(){const m=new Map();[...gc(),...(LS('q')||[])].forEach(r=>m.set(r.i
 const gc=()=>CACHE[ck()]||[],sc=v=>{CACHE[ck()]=v;IDB.set(ck(),v)};
 const mergeRows=(a,b)=>{const m=new Map(a.map(r=>[r.id,r]));b.forEach(r=>m.set(r.id,r));return[...m.values()]};
 async function pull(f,full){let out=[],o=0;for(;;){const g=await fetch(B+'/recepciones?select=*&order=created_at.desc,id.asc&limit=1000&offset='+o+f,{headers:HD});if(!g.ok)throw new Error('Leer: '+g.status+' '+(await g.text()).slice(0,140));const a=await g.json();out=out.concat(a);if(!full||a.length<1000||out.length>=200000)break;o+=1000}return out}
-const busy=()=>user&&(user.role==='suc'||editId)&&(!!foto||['t','pr','pe','ff','otro','clo','tio'].some(i=>{const e=document.getElementById(i);return e&&e.value}));
+const busy=()=>user&&(user.role==='suc'||editId)&&(!!foto||!!getDr()||['t','pr','pe','ff','otro','clo','tio'].some(i=>{const e=document.getElementById(i);return e&&e.value}));
 async function upFotos(){if(upB)return;const l=qf();if(!l.length)return;if(!(CONFIG.DRIVE_URL||'').trim())throw new Error('falta configurar DRIVE_URL en config.js');upB=true;
  try{for(const f of l){const img=await IDB.get('f_'+f.fid);
   if(img){const r=await fetch(CONFIG.DRIVE_URL.trim(),{method:'POST',body:JSON.stringify({sucursal:f.suc,fecha:f.fecha,id:f.id,fid:f.fid,img:img.split(',')[1]})});
@@ -132,7 +135,7 @@ function render(){const a=$('#app');document.body.classList.toggle('mob',vw==='m
   <div class="err">${err}</div><button class="btn big">Entrar</button></form><div class="ft">CAR-0003 · Rev 2.0</div><button type="button" class="vt">${vl()}</button></div></div>`;
   bv();$('#tg').onclick=()=>{const p=$('#lp');p.type=p.type==='password'?'text':'password'};
   $('#lf').onsubmit=e=>{e.preventDefault();const u=CONFIG.USERS[norm($('#lu').value)];
-   if(u&&u.p.toLowerCase()===$('#lp').value.trim().toLowerCase()){user=u;err='';SSt.setItem('u',JSON.stringify(u));IDB.get(ck()).then(v=>{CACHE[ck()]=v||[];lastFull=0;sync(true)})}else{err='Usuario o contraseña incorrectos';render()}};return}
+   if(u&&u.p.toLowerCase()===$('#lp').value.trim().toLowerCase()){user=u;err='';SSt.setItem('u',JSON.stringify(u));IDB.get(ck()).then(async v=>{CACHE[ck()]=v||[];lastFull=0;await restDr();sync(true)})}else{err='Usuario o contraseña incorrectos';render()}};return}
  a.innerHTML=user.role==='suc'?viewSuc():viewCal();
  $('#out').onclick=()=>{['u','r'].forEach(k=>SSt.removeItem(k));user=null;resp='';foto=null;kf='';editId=null;msg='';render()};
  user.role==='suc'?bindSuc():bindCal();bv();}
@@ -145,17 +148,21 @@ const hcell=r=>{const h=hist(r);return h.length?`<details><summary>✏️ ${h.le
 function rows(l,suc,act){if(vw==='m')return l.length?l.map(r=>`<div class="rc"><div class="rt"><b>${esc(r.producto)}</b>${tag(r)}</div><div class="rg"><span>Recepción</span><b>${fd(r.f_recepcion)}</b><span>Faena</span><b>${fd(r.f_faena)}</b><span>Temperatura</span><b>${n1(r.temp)} °C</b><span>Clasif. / Tipif.</span><b>${esc(r.clasif)} · ${esc(r.tipif)}</b><span>Peso remito / real</span><b>${n1(r.peso_remito)} / ${n1(r.peso_real)} Kg</b><span>Dif. peso</span><b>${n1(r.dif)}% ${yn(r.dp)}</b><span>Días desde faena</span><b>${r.dias===null?'-':r.dias}${r.d4?' ⚠':''}</b>${suc?`<span>Sucursal</span><b>${esc(r.sucursal)}</b>`:''}<span>Responsable</span><b>${esc(r.responsable)}</b><span>Foto</span><b>${fcell(r)}</b><span>Modificaciones</span><b>${hcell(r)}</b></div>${act?`<div class="ac">${ab(r)}</div>`:''}</div>`).join(''):'<p class="hint">Sin registros</p>';return `<div class="tw"><table><tr><th>Producto</th><th>Recepción</th><th>Faena</th><th>Temp °C</th><th>Clasif.</th><th>Tipif.</th><th>Peso remito</th><th>Peso real</th><th>Dif %</th><th>Días</th><th>Desvío T</th><th>DP&gt;3%</th>${suc?'<th>Sucursal / Resp.</th>':'<th>Responsable</th>'}<th>Foto</th><th>Modificaciones</th>${act?'<th>Acciones</th>':''}</tr>
 ${l.map(r=>`<tr><td>${esc(r.producto)}</td><td>${fd(r.f_recepcion)}</td><td>${fd(r.f_faena)}</td><td>${n1(r.temp)}</td><td>${esc(r.clasif)}</td><td>${esc(r.tipif)}</td><td>${n1(r.peso_remito)}</td><td>${n1(r.peso_real)}</td><td>${n1(r.dif)}%</td><td>${r.dias===null?'-':`<span class="tag ${r.d4?'nc':'no'}">${r.dias}</span>`}</td><td>${tag(r)}</td><td>${yn(r.dp)}</td><td>${suc?esc(r.sucursal)+' · ':''}${esc(r.responsable)}</td><td>${fcell(r)}</td><td>${hcell(r)}</td>${act?`<td>${ab(r)}</td>`:''}</tr>`).join('')||'<tr><td colspan="16">Sin registros</td></tr>'}</table></div>`}
 
-function formBlock(ed){const oo=ed&&!PROD.includes(ed.producto),oc=ed&&!CLA.includes(ed.clasif),ot=ed&&!TIP.includes(ed.tipif),pfE=ed&&qf().some(x=>x.id===ed.id);
+function formBlock(ed){const d=getDr(),D=d&&d.id===(ed?ed.id:'')?d.f:null,V=(k,def)=>D&&D[k]!=null?D[k]:def,
+ pv=V('prod',ed?(PROD.includes(ed.producto)?ed.producto:'__o'):PROD[0]),oo=pv==='__o',otroV=V('otro',ed&&!PROD.includes(ed.producto)?ed.producto:''),
+ clv=V('cl',ed?(CLA.includes(ed.clasif)?ed.clasif:'__o'):CLA[0]),oc=clv==='__o',cloV=V('clo',ed&&!CLA.includes(ed.clasif)?ed.clasif:''),
+ tiv=V('ti',ed?(TIP.includes(ed.tipif)?ed.tipif:'__o'):TIP[0]),ot=tiv==='__o',tioV=V('tio',ed&&!TIP.includes(ed.tipif)?ed.tipif:''),
+ frV=V('fr',ed?ed.f_recepcion:today()),pfE=ed&&qf().some(x=>x.id===ed.id);if(d&&!D)LS('dr_'+user.n,null);
  return ` <div class="grid two"><form class="card" id="f"><h2>${ed?'Editar recepción'+(user.role==='cal'?' · '+esc(ed.sucursal):''):'Nueva recepción'}</h2>${user.role==='suc'&&gm()?`<div class="off" style="margin-bottom:12px">${gm()}</div>`:''}<div class="grid">
- <div><label>Producto *</label><select id="prod">${PROD.map(p=>`<option ${ed&&ed.producto===p?'selected':''}>${p}</option>`).join('')}<option value="__o" ${oo?'selected':''}>Otro…</option></select><input id="otro" placeholder="Nombre del producto" value="${oo?esc(ed.producto):''}" style="display:${oo?'block':'none'};margin-top:6px"><div class="hint" id="oth" style="display:${oo?'block':'none'}">Mayúsculas, tildes y espacios no importan: "asado de tira" y "ASADO DE TIRA" se cuentan como el mismo producto.</div></div>
- <div><label>Fecha de recepción *</label><input type="date" id="fr" value="${ed?ed.f_recepcion:today()}" required></div>
- <div><label>Fecha de faena (opcional)</label><input type="date" id="ff" value="${ed&&ed.f_faena||''}"><div class="hint">Dejar vacío si no figura en la etiqueta</div></div>
- <div><label>Temperatura (°C) *</label><input type="number" step="0.1" inputmode="decimal" id="t" placeholder="0,0" value="${ed?ed.temp:''}" required><div class="hint">Ideal menor a 7 °C</div></div>
- <div><label>Clasificación *</label><select id="cl">${CLA.map(o=>`<option ${ed&&ed.clasif===o?'selected':''}>${o}</option>`).join('')}<option value="__o" ${oc?'selected':''}>Otro…</option></select><input id="clo" placeholder="Escribí la clasificación" value="${oc?esc(ed.clasif):''}" style="display:${oc?'block':'none'};margin-top:6px"></div>
- <div><label>Tipificación (L/N°) *</label><select id="ti">${TIP.map(o=>`<option ${ed&&ed.tipif===o?'selected':''}>${o}</option>`).join('')}<option value="__o" ${ot?'selected':''}>Otro…</option></select><input id="tio" placeholder="Escribí la tipificación" value="${ot?esc(ed.tipif):''}" style="display:${ot?'block':'none'};margin-top:6px"></div>
- <div><label>Peso remito (Kg) *</label><input type="number" step="0.01" inputmode="decimal" id="pr" value="${ed?ed.peso_remito:''}" required></div>
- <div><label>Peso real (Kg) *</label><input type="number" step="0.01" inputmode="decimal" id="pe" value="${ed?ed.peso_real:''}" required></div>
- <div style="grid-column:1/-1"><label>Foto de la mercadería <span id="fq">${user.role==='suc'&&fotoReq(ed?ed.f_recepcion:today())?'*':'(opcional)'}</span></label><div class="ph"><img id="fpv" alt="Vista previa" src="${foto||''}" style="display:${foto?'block':'none'}"><div><input type="file" id="fo" accept="image/*"><div class="hint" id="fh">${foto?'✔ Foto lista':ed&&(ed.foto_url||pfE)?'Este registro ya tiene foto. Subí otra solo si querés reemplazarla.':'Sacá la foto con la cámara o elegila de la galería.'}</div>${FOTO_DESDE?`<div class="hint">Obligatoria para recepciones desde el ${fd(FOTO_DESDE)}. Las recepciones anteriores se pueden cargar sin foto.</div>`:''}</div></div></div></div>
+ <div><label>Producto *</label><select id="prod">${PROD.map(p=>`<option ${pv===p?'selected':''}>${p}</option>`).join('')}<option value="__o" ${oo?'selected':''}>Otro…</option></select><input id="otro" placeholder="Nombre del producto" value="${esc(otroV)}" style="display:${oo?'block':'none'};margin-top:6px"><div class="hint" id="oth" style="display:${oo?'block':'none'}">Mayúsculas, tildes y espacios no importan: "asado de tira" y "ASADO DE TIRA" se cuentan como el mismo producto.</div></div>
+ <div><label>Fecha de recepción *</label><input type="date" id="fr" value="${esc(frV)}" required></div>
+ <div><label>Fecha de faena (opcional)</label><input type="date" id="ff" value="${esc(V('ff',ed&&ed.f_faena||''))}"><div class="hint">Dejar vacío si no figura en la etiqueta</div></div>
+ <div><label>Temperatura (°C) *</label><input type="number" step="any" inputmode="decimal" id="t" placeholder="0,0" value="${esc(V('t',ed?ed.temp:''))}" required><div class="hint">Ideal menor a 7 °C</div></div>
+ <div><label>Clasificación *</label><select id="cl">${CLA.map(o=>`<option ${clv===o?'selected':''}>${o}</option>`).join('')}<option value="__o" ${oc?'selected':''}>Otro…</option></select><input id="clo" placeholder="Escribí la clasificación" value="${esc(cloV)}" style="display:${oc?'block':'none'};margin-top:6px"></div>
+ <div><label>Tipificación (L/N°) *</label><select id="ti">${TIP.map(o=>`<option ${tiv===o?'selected':''}>${o}</option>`).join('')}<option value="__o" ${ot?'selected':''}>Otro…</option></select><input id="tio" placeholder="Escribí la tipificación" value="${esc(tioV)}" style="display:${ot?'block':'none'};margin-top:6px"></div>
+ <div><label>Peso remito (Kg) *</label><input type="number" step="any" inputmode="decimal" id="pr" value="${esc(V('pr',ed?ed.peso_remito:''))}" required></div>
+ <div><label>Peso real (Kg) *</label><input type="number" step="any" inputmode="decimal" id="pe" value="${esc(V('pe',ed?ed.peso_real:''))}" required></div>
+ <div style="grid-column:1/-1"><label>Foto de la mercadería <span id="fq">${user.role==='suc'&&fotoReq(frV)?'*':'(opcional)'}</span></label><div class="ph"><img id="fpv" alt="Vista previa" src="${foto||''}" style="display:${foto?'block':'none'}"><div><input type="file" id="fo" accept="image/*"><div class="hint" id="fh">${foto?'✔ Foto lista':ed&&(ed.foto_url||pfE)?'Este registro ya tiene foto. Subí otra solo si querés reemplazarla.':'Sacá la foto con la cámara o elegila de la galería.'}</div>${FOTO_DESDE?`<div class="hint">Obligatoria para recepciones desde el ${fd(FOTO_DESDE)}. Las recepciones anteriores se pueden cargar sin foto.</div>`:''}</div></div></div></div>
  <br><button class="btn">${ed?'💾 Guardar cambios':'+ Guardar registro'}</button> ${ed?'<button type="button" class="btn o" id="cx">Cancelar</button>':''}<div class="err" id="fe"></div></form>
  <div class="card auto"><h2>Análisis automático</h2><div><span>Desvío T</span><b id="a1">-</b></div><div><span>Días desde faena</span><b id="a2">-</b></div><div><span>Diferencia de peso</span><b id="a3">-</b></div><div><span>Diferencia aceptada (3%)</span><b id="a4">-</b></div><div><span>DP &gt; 3%</span><b id="a5">-</b></div>
  <div class="hint" style="margin-top:12px"><span class="dot" style="background:var(--ok)"></span>T ≤ 7 °C Conforme<br><span class="dot" style="background:var(--dv)"></span>7 &lt; T ≤ 10 °C Desviación<br><span class="dot" style="background:var(--nc)"></span>T &gt; 10 °C No conforme<br>Más de 4 días desde faena → No conformidad</div></div></div>
@@ -167,20 +174,21 @@ ${formBlock(ed)}
  <div class="card"><h2>Hoy · ${user.n} <span class="pill" style="background:var(--g)">${h.length}</span></h2><div class="hint" style="margin:-8px 0 12px">Si te equivocaste en una carga, tocá ✏️ Editar. Cada cambio queda registrado con el nombre del responsable.</div>${rows(h,0,1)}</div></main>`}
 
 function bindSuc(){bindEd();bindForm()}
-const bindEd=()=>document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{editId=b.dataset.ed;foto=null;render();scrollTo(0,0)});
+const bindEd=()=>document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{const d=getDr();if(d&&d.id!==b.dataset.ed&&!confirm('Tenés datos sin guardar en el formulario. Si editás este registro se descartan. ¿Continuar?'))return;clrDr();editId=b.dataset.ed;render();scrollTo(0,0)});
 function bindForm(){const p=$('#prod'),g=id=>$('#'+id).value;
- if($('#cx'))$('#cx').onclick=()=>{editId=null;foto=null;render()};
+ ['input','change'].forEach(ev=>$('#f').addEventListener(ev,e=>{if(e.target.id!=='fo')saveDr()}));
+ if($('#cx'))$('#cx').onclick=()=>{editId=null;clrDr();render()};
  p.onchange=()=>{$('#otro').style.display=$('#oth').style.display=p.value==='__o'?'block':'none'};
  [['cl','clo'],['ti','tio']].forEach(([s,i])=>$('#'+s).onchange=()=>$('#'+i).style.display=$('#'+s).value==='__o'?'block':'none');
- $('#fo').onchange=async e=>{const fl=e.target.files[0];if(!fl)return;$('#fh').textContent='Procesando foto…';try{foto=await comprimir(fl);$('#fpv').src=foto;$('#fpv').style.display='block';$('#fh').textContent='✔ Foto lista ('+Math.round(foto.length*.75/1024)+' KB)'}catch(x){foto=null;$('#fh').textContent='⚠ '+x.message}};
+ $('#fo').onchange=async e=>{const fl=e.target.files[0];if(!fl)return;$('#fh').textContent='Procesando foto…';try{foto=await comprimir(fl);saveDr();IDB.set('df_'+user.n,{id:editId||'',img:foto});$('#fpv').src=foto;$('#fpv').style.display='block';$('#fh').textContent='✔ Foto lista ('+Math.round(foto.length*.75/1024)+' KB)'}catch(x){foto=null;$('#fh').textContent='⚠ '+x.message}};
  $('#resp').oninput=e=>{resp=e.target.value;SSt.setItem('r',resp)};
  const live=()=>{const t=+g('t'),pr=+g('pr'),pe=+g('pe'),ff=g('ff'),fr=g('fr');
-  if(g('t')!==''){const d=Math.max(0,t-7);$('#a1').innerHTML=tag({est:t<=7?'ok':t<=10?'dev':'nc'})+' '+(t>7?'+'+n1(d)+' °C':'')}
-  if(ff&&fr){const d=Math.round((new Date(fr)-new Date(ff))/864e5);$('#a2').innerHTML=`<span class="tag ${d>4?'nc':'no'}">${d}</span>`}
-  if(pr>0&&g('pe')!==''){const df=pe-pr;$('#a3').textContent=n1(df)+' Kg ('+n1(df/pr*100)+'%)';$('#a4').textContent='±'+n1(pr*.03)+' Kg';$('#a5').innerHTML=yn(Math.abs(df/pr)>.03)}};
+  if(g('t')!==''){const d=Math.max(0,t-7);$('#a1').innerHTML=tag({est:t<=7?'ok':t<=10?'dev':'nc'})+' '+(t>7?'+'+n1(d)+' °C':'')}else $('#a1').textContent='-';
+  if(ff&&fr){const d=Math.round((new Date(fr)-new Date(ff))/864e5);$('#a2').innerHTML=`<span class="tag ${d>4?'nc':'no'}">${d}</span>`}else $('#a2').textContent='-';
+  if(pr>0&&g('pe')!==''){const df=pe-pr;$('#a3').textContent=n1(df)+' Kg ('+n1(df/pr*100)+'%)';$('#a4').textContent='±'+n1(pr*.03)+' Kg';$('#a5').innerHTML=yn(Math.abs(df/pr)>.03)}else['a3','a4','a5'].forEach(i=>$('#'+i).textContent='-')};
  ['t','pr','pe','ff','fr'].forEach(i=>$('#'+i).oninput=live);
  $('#fr').addEventListener('input',()=>{$('#fq').textContent=user.role==='suc'&&fotoReq(g('fr'))?'*':'(opcional)'});
- if(editId)live();
+ live();
  $('#f').onsubmit=async e=>{e.preventDefault();resp=$('#resp').value.trim();SSt.setItem('r',resp);const prod=p.value==='__o'?pname(g('otro')):p.value,cl=g('cl')==='__o'?g('clo').trim():g('cl'),ti=g('ti')==='__o'?g('tio').trim():g('ti');
   if(!resp||!prod){$('#fe').textContent=user.role==='cal'?'Completá tu nombre (quién modifica) y el producto':'Completá el responsable y el producto';return}
   if(!cl||!ti){$('#fe').textContent='Completá la clasificación y la tipificación (si elegiste "Otro…", escribila)';return}
@@ -188,9 +196,9 @@ function bindForm(){const p=$('#prod'),g=id=>$('#'+id).value;
   const prev=editId?all().find(x=>x.id===editId):null,pfP=prev&&qf().some(x=>x.id===prev.id);
   if(user.role==='suc'&&fotoReq(g('fr'))&&!foto&&!(prev&&(prev.foto_url||pfP))){$('#fe').textContent='Falta la foto de la mercadería (obligatoria desde el '+fd(FOTO_DESDE)+')';return}
   const id=editId||uid(),r={id,sucursal:prev?prev.sucursal:user.n,responsable:prev?prev.responsable:resp,producto:prod,f_recepcion:g('fr'),f_faena:g('ff')||null,temp:+g('t'),clasif:cl,tipif:ti,peso_remito:+g('pr'),peso_real:+g('pe'),created_at:(prev&&prev.created_at)||new Date().toISOString(),foto_url:prev?prev.foto_url||null:null,historial:prev?hist(prev):[]};
-  if(prev){const ch=difs(prev,r);if(foto)ch.push(['Foto',prev.foto_url||pfP?'anterior':'sin foto','reemplazada']);if(!ch.length){msg='No hubo cambios para guardar';msgT=Date.now();editId=null;render();return}r.historial=[...hist(prev),{u:user.role==='cal'?resp+' (Calidad)':resp,t:new Date().toISOString(),c:ch}]}
+  if(prev){const ch=difs(prev,r);if(foto)ch.push(['Foto',prev.foto_url||pfP?'anterior':'sin foto','reemplazada']);if(!ch.length){msg='No hubo cambios para guardar';msgT=Date.now();editId=null;clrDr();render();return}r.historial=[...hist(prev),{u:user.role==='cal'?resp+' (Calidad)':resp,t:new Date().toISOString(),c:ch}]}
   if(foto){const fid=uid();await IDB.set('f_'+fid,foto);qf().filter(x=>x.id===id).forEach(x=>IDB.del('f_'+x.fid));LS('qf',[...qf().filter(x=>x.id!==id),{id,fid,suc:r.sucursal,fecha:r.f_recepcion}]);foto=null}
-  LS('q',[...(LS('q')||[]).filter(x=>x.id!==r.id),r]);msg=editId?'Cambios guardados':'Registro guardado';msgT=Date.now();editId=null;sync(true)}}
+  LS('q',[...(LS('q')||[]).filter(x=>x.id!==r.id),r]);msg=editId?'Cambios guardados':'Registro guardado';msgT=Date.now();editId=null;clrDr();sync(true)}}
 function comprimir(file){return new Promise((ok,ko)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const M=1600,k=Math.min(1,M/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);ok(c.toDataURL('image/jpeg',.72))};im.onerror=()=>{URL.revokeObjectURL(u);ko(new Error('No se pudo leer la imagen. Probá de nuevo.'))};im.src=u})}
 
 // ---------- Calidad ----------
@@ -257,5 +265,6 @@ function excel(l,suc,from,to){if(typeof XLSX==='undefined'){alert('Para descarga
  const w2=XLSX.utils.aoa_to_sheet(R);w2['!cols']=[46,16,14,14,14].map(w=>({wch:w}));
  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Registros');XLSX.utils.book_append_sheet(wb,w2,'Resumen');
  XLSX.writeFile(wb,`CAR-0003_${(suc||'Todas').replace(/\s/g,'')}_${today()}.xlsx`)}
-IDB.open().then(async()=>{if(user)CACHE[ck()]=(await IDB.get(ck()))||[];render();if(user)sync()});
+async function restDr(){const d=getDr();if(!d)return;if(d.id)editId=d.id;const fx=await IDB.get('df_'+user.n);if(fx&&fx.id===d.id)foto=fx.img}
+IDB.open().then(async()=>{if(user){CACHE[ck()]=(await IDB.get(ck()))||[];await restDr()}render();if(user)sync()});
 </script></body></html>
