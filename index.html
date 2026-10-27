@@ -53,6 +53,10 @@ main>*,.grid>*{min-width:0}main{width:100%}.tw{max-width:100%}
 .ph{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.ph img{width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--ln)}.ph>div{flex:1;min-width:180px}
 details summary{cursor:pointer;font-weight:600;color:var(--g)}.hl{white-space:normal;min-width:230px;max-width:380px;font-size:12px;color:var(--tx);margin-top:6px;text-align:left;font-weight:400}.hl div{padding:5px 0;border-top:1px dashed var(--ln)}
 td a,.rg a{color:var(--g);font-weight:600}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab{border:1px solid var(--g);background:#fff;color:var(--g);border-radius:99px;padding:9px 16px;font-weight:700}.tab.on{background:var(--g);color:#fff}
+tr.bad td{background:#fff5f5}.rc.bad{background:#fff5f5;border-color:#f3c9c7}textarea{width:100%;padding:11px;border:1px solid #cfd9d2;border-radius:10px;font:inherit;min-height:60px}
+.grid.k5{grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.grid.k5 .kpi{padding:12px 13px}@media(max-width:1050px){.grid.k5{grid-template-columns:repeat(2,minmax(0,1fr))}}body.mob .grid.k5{grid-template-columns:1fr 1fr}
+.kpi.nf{cursor:default}.ds2{grid-template-columns:minmax(0,2.2fr) minmax(0,1fr)}@media(max-width:900px){.ds2{grid-template-columns:minmax(0,1fr)}}
 </style></head>
 <body><div id="app"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -89,6 +93,7 @@ const saveDr=()=>{if(!user||!$('#f'))return;const f={};FF.forEach(k=>{const e=$(
 const pname=t=>{t=String(t||'').trim().replace(/\s+/g,' ');const k=norm(t),f=PROD.find(x=>norm(x)===k);return f||(t?t[0].toUpperCase()+t.slice(1).toLowerCase():t)};
 let msgT=0;const gm=()=>msg&&Date.now()-msgT<6000?msg:'';
 const FOTO_DESDE=(CONFIG.FOTO_DESDE||'').trim(),fotoReq=f=>!!FOTO_DESDE&&!!f&&f>=FOTO_DESDE;
+let sec=SSt.getItem('sec')||'c',editE=null,kfe='',lastFullE=0,errE='';
 let vw=LS('vw')||(innerWidth<760?'m':'d'),user=JSON.parse(SSt.getItem('u')||'null'),resp=SSt.getItem('r')||'',err='',editId=null,msg='',lastSync='',syncErr=false,syncMsg='',sf={from:'',to:''},flt={from:'',to:'',suc:'',grp:'mes'},kf='',foto=null,fotoErr='',upB=false;
 
 function calc(r){const d=r.f_faena?Math.round((new Date(r.f_recepcion)-new Date(r.f_faena))/864e5):null;
@@ -100,8 +105,8 @@ function all(){const m=new Map();[...gc(),...(LS('q')||[])].forEach(r=>m.set(r.i
  return l.map(calc).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))}
 const gc=()=>CACHE[ck()]||[],sc=v=>{CACHE[ck()]=v;IDB.set(ck(),v)};
 const mergeRows=(a,b)=>{const m=new Map(a.map(r=>[r.id,r]));b.forEach(r=>m.set(r.id,r));return[...m.values()]};
-async function pull(f,full){let out=[],o=0;for(;;){const g=await fetch(B+'/recepciones?select=*&order=created_at.desc,id.asc&limit=1000&offset='+o+f,{headers:HD});if(!g.ok)throw new Error('Leer: '+g.status+' '+(await g.text()).slice(0,140));const a=await g.json();out=out.concat(a);if(!full||a.length<1000||out.length>=200000)break;o+=1000}return out}
-const busy=()=>user&&(user.role==='suc'||editId)&&(!!foto||!!getDr()||['t','pr','pe','ff','otro','clo','tio'].some(i=>{const e=document.getElementById(i);return e&&e.value}));
+async function pull(f,full,t='recepciones'){let out=[],o=0;for(;;){const g=await fetch(B+'/'+t+'?select=*&order=created_at.desc,id.asc&limit=1000&offset='+o+f,{headers:HD});if(!g.ok)throw new Error('Leer: '+g.status+' '+(await g.text()).slice(0,140));const a=await g.json();out=out.concat(a);if(!full||a.length<1000||out.length>=200000)break;o+=1000}return out}
+const busy=()=>user&&(user.role==='suc'||editId||editE)&&(!!foto||!!getDr()||!!getDrE()||['t','pr','pe','ff','otro','clo','tio','epv','eq','ekg','eob'].some(i=>{const e=document.getElementById(i);return e&&e.value}));
 async function upFotos(){if(upB)return;const l=qf();if(!l.length)return;if(!(CONFIG.DRIVE_URL||'').trim())throw new Error('falta configurar DRIVE_URL en config.js');upB=true;
  try{for(const f of l){const img=await IDB.get('f_'+f.fid);
   if(img){const r=await fetch(CONFIG.DRIVE_URL.trim(),{method:'POST',body:JSON.stringify({sucursal:f.suc,fecha:f.fecha,id:f.id,fid:f.fid,img:img.split(',')[1]})});
@@ -117,14 +122,15 @@ async function sync(force){if(force)render();if(!CONFIG.SUPABASE_URL||!navigator
   if(q.length){const r=await fetch(B+'/recepciones?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q.map(fullRow))});if(!r.ok)throw new Error('Guardar: '+r.status+' '+(await r.text()).slice(0,140));LS('q',[])}
   const f=user.role==='suc'?'&sucursal=eq.'+encodeURIComponent(user.n):'';
   const full=Date.now()-lastFull>6e5||!gc().length,rows=await pull(f,full);sc(full?rows:mergeRows(gc(),rows));if(full)lastFull=Date.now();syncErr=false;syncMsg='';lastSync=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}catch(e){syncErr=true;syncMsg=(e&&e.message)||'sin respuesta'}
+ try{await syncE();errE=''}catch(e){const m=(e&&e.message)||'sin respuesta';errE=/PGRST205|42P01|does not exist|Could not find/.test(m)?'falta crear la tabla "envasados" en Supabase':m}
  if(force||!busy())render()}
 addEventListener('online',()=>sync());addEventListener('offline',()=>{if(user&&!busy())render()});document.addEventListener('visibilitychange',()=>!document.hidden&&user&&sync());setInterval(()=>user&&sync(),30000);
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 
-function head(sub){const pend=(LS('q')||[]).length,pf=qf().length;
+function head(sub){const pend=(LS('q')||[]).length+(LS('qe')||[]).length,pf=qf().length;
  return `<header><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj48cmVjdCB4PSI2IiB5PSI2IiB3aWR0aD0iMTA4IiBoZWlnaHQ9IjEwOCIgcng9IjI4IiBmaWxsPSIjZmZmIiBzdHJva2U9IiMxNDMwMWYiIHN0cm9rZS13aWR0aD0iOCIvPjx0ZXh0IHg9IjYwIiB5PSI1NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIEJsYWNrLEFyaWFsIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjI0IiBmaWxsPSIjMTQzMDFmIj5DQU1QTzwvdGV4dD48dGV4dCB4PSI2MCIgeT0iODQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCBCbGFjayxBcmlhbCIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzE0MzAxZiI+VkVSREU8L3RleHQ+PC9zdmc+Cg==" alt="Campo Verde"><div><small>CAMPO VERDE</small><h1>Control de Recepción de Carnicería</h1><div style="opacity:.85;font-size:14px;margin-top:4px">${sub}</div></div><span class="sp"></span>
- <button class="vt">${vl()}</button>${user?`${!navigator.onLine?'<span class="off">Sin conexión</span>':''}${pend?`<span class="off">${pend} pendiente(s) de sincronizar</span>`:''}${pf?`<span class="off">📷 ${pf} foto(s) pendiente(s) de subir${fotoErr&&navigator.onLine?' · '+esc(fotoErr):''}</span>`:''}${CONFIG.SUPABASE_URL?(syncErr&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ No se pudo sincronizar: '+esc(syncMsg)+'</span>':(!pend&&!pf&&lastSync?`<span class="pill">☁ Guardado en la nube ${lastSync}</span>`:'')):'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Modo local: datos solo en este dispositivo</span>'}<span class="pill">CAR-0003 · Rev 2.0</span><button class="btn o s" id="out">Salir</button>`:''}</header>`}
+ <button class="vt">${vl()}</button>${user?`${!navigator.onLine?'<span class="off">Sin conexión</span>':''}${pend?`<span class="off">${pend} pendiente(s) de sincronizar</span>`:''}${pf?`<span class="off">📷 ${pf} foto(s) pendiente(s) de subir${fotoErr&&navigator.onLine?' · '+esc(fotoErr):''}</span>`:''}${CONFIG.SUPABASE_URL?(syncErr&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ No se pudo sincronizar: '+esc(syncMsg)+'</span>':(errE&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Envasados: '+esc(errE)+'</span>':'')+(!pend&&!pf&&lastSync?`<span class="pill">☁ Guardado en la nube ${lastSync}</span>`:'')):'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Modo local: datos solo en este dispositivo</span>'}<span class="pill">CAR-0003 · Rev 2.0</span><button class="btn o s" id="out">Salir</button>`:''}</header>`}
 
 const bv=()=>document.querySelectorAll('.vt').forEach(b=>b.onclick=()=>{vw=vw==='m'?'d':'m';LS('vw',vw);render()});
 const vl=()=>vw==='m'?'🖥 Ver en computadora':'📱 Ver en celular';
@@ -135,10 +141,11 @@ function render(){const a=$('#app');document.body.classList.toggle('mob',vw==='m
   <div class="err">${err}</div><button class="btn big">Entrar</button></form><div class="ft">CAR-0003 · Rev 2.0</div><button type="button" class="vt">${vl()}</button></div></div>`;
   bv();$('#tg').onclick=()=>{const p=$('#lp');p.type=p.type==='password'?'text':'password'};
   $('#lf').onsubmit=e=>{e.preventDefault();const u=CONFIG.USERS[norm($('#lu').value)];
-   if(u&&u.p.toLowerCase()===$('#lp').value.trim().toLowerCase()){user=u;err='';SSt.setItem('u',JSON.stringify(u));IDB.get(ck()).then(async v=>{CACHE[ck()]=v||[];lastFull=0;await restDr();sync(true)})}else{err='Usuario o contraseña incorrectos';render()}};return}
- a.innerHTML=user.role==='suc'?viewSuc():viewCal();
- $('#out').onclick=()=>{['u','r'].forEach(k=>SSt.removeItem(k));user=null;resp='';foto=null;kf='';editId=null;msg='';render()};
- user.role==='suc'?bindSuc():bindCal();bv();}
+   if(u&&u.p.toLowerCase()===$('#lp').value.trim().toLowerCase()){user=u;err='';SSt.setItem('u',JSON.stringify(u));IDB.get(ck()).then(async v=>{CACHE[ck()]=v||[];CACHE[ckE()]=(await IDB.get(ckE()))||[];lastFull=0;lastFullE=0;await restDr();sync(true)})}else{err='Usuario o contraseña incorrectos';render()}};return}
+ a.innerHTML=user.role==='suc'?(sec==='e'?viewSucE():viewSuc()):(sec==='e'?viewCalE():viewCal());
+ $('#out').onclick=()=>{['u','r'].forEach(k=>SSt.removeItem(k));user=null;resp='';foto=null;kf='';kfe='';editId=null;editE=null;msg='';render()};
+ user.role==='suc'?(sec==='e'?bindSucE():bindSuc()):(sec==='e'?bindCalE():bindCal());bv();
+ document.querySelectorAll('[data-sec]').forEach(b=>b.onclick=()=>{sec=b.dataset.sec;SSt.setItem('sec',sec);render();scrollTo(0,0)});}
 
 const tag=r=>`<span class="tag ${r.est}">${{ok:'Conforme',dev:'Desviación',nc:'No conforme'}[r.est]}</span>`;
 const yn=b=>`<span class="tag ${b?'nc':'no'}">${b?'SI':'NO'}</span>`;
@@ -163,15 +170,15 @@ function formBlock(ed){const d=getDr(),D=d&&d.id===(ed?ed.id:'')?d.f:null,V=(k,d
  <div><label>Peso remito (Kg) *</label><input type="number" step="any" inputmode="decimal" id="pr" value="${esc(V('pr',ed?ed.peso_remito:''))}" required></div>
  <div><label>Peso real (Kg) *</label><input type="number" step="any" inputmode="decimal" id="pe" value="${esc(V('pe',ed?ed.peso_real:''))}" required></div>
  <div style="grid-column:1/-1"><label>Foto de la mercadería <span id="fq">${user.role==='suc'&&fotoReq(frV)?'*':'(opcional)'}</span></label><div class="ph"><img id="fpv" alt="Vista previa" src="${foto||''}" style="display:${foto?'block':'none'}"><div><input type="file" id="fo" accept="image/*"><div class="hint" id="fh">${foto?'✔ Foto lista':ed&&(ed.foto_url||pfE)?'Este registro ya tiene foto. Subí otra solo si querés reemplazarla.':'Sacá la foto con la cámara o elegila de la galería.'}</div>${FOTO_DESDE?`<div class="hint">Obligatoria para recepciones desde el ${fd(FOTO_DESDE)}. Las recepciones anteriores se pueden cargar sin foto.</div>`:''}</div></div></div></div>
- <br><button class="btn">${ed?'💾 Guardar cambios':'+ Guardar registro'}</button> ${ed?'<button type="button" class="btn o" id="cx">Cancelar</button>':''}<div class="err" id="fe"></div></form>
+ <br><button class="btn">${ed?'💾 Guardar cambios':'+ Guardar registro'}</button> ${ed?'<button type="button" class="btn o" id="cx">Cancelar</button>':''}<div class="err" id="fe"></div>${user.role==='suc'?'<div class="hint" style="margin-top:10px">⚠ Revisá bien antes de guardar: una vez guardado, solo Calidad puede corregirlo.</div>':''}</form>
  <div class="card auto"><h2>Análisis automático</h2><div><span>Desvío T</span><b id="a1">-</b></div><div><span>Días desde faena</span><b id="a2">-</b></div><div><span>Diferencia de peso</span><b id="a3">-</b></div><div><span>Diferencia aceptada (3%)</span><b id="a4">-</b></div><div><span>DP &gt; 3%</span><b id="a5">-</b></div>
  <div class="hint" style="margin-top:12px"><span class="dot" style="background:var(--ok)"></span>T ≤ 7 °C Conforme<br><span class="dot" style="background:var(--dv)"></span>7 &lt; T ≤ 10 °C Desviación<br><span class="dot" style="background:var(--nc)"></span>T &gt; 10 °C No conforme<br>Más de 4 días desde faena → No conformidad</div></div></div>
 `}
-function viewSuc(){const l=all(),h=l.filter(r=>r.f_recepcion===today()||(r.created_at&&new Date(r.created_at).toLocaleDateString('en-CA')===today())),ed=editId?h.find(r=>r.id===editId):null;if(editId&&!ed)editId=null;
- return head(`${user.n} · Formulario de registro`)+`<main>
+function viewSuc(){const l=all(),h=l.filter(esHoy),ed=null;editId=null;
+ return head(`${user.n} · Carnicería`)+`<main>${tabs()}
  <div class="card"><label>Responsable de la carga *</label><input id="resp" value="${esc(resp)}" placeholder="Nombre y apellido"></div>
 ${formBlock(ed)}
- <div class="card"><h2>Hoy · ${user.n} <span class="pill" style="background:var(--g)">${h.length}</span></h2><div class="hint" style="margin:-8px 0 12px">Si te equivocaste en una carga, tocá ✏️ Editar. Cada cambio queda registrado con el nombre del responsable.</div>${rows(h,0,1)}</div></main>`}
+ <div class="card"><h2>Hoy · ${user.n} <span class="pill" style="background:var(--g)">${h.length}</span></h2><div class="hint" style="margin:-8px 0 12px">Solo lectura. Si hay un error en una carga, avisá a Calidad para que lo corrija.</div>${rows(h,0,0)}</div></main>`}
 
 function bindSuc(){bindEd();bindForm()}
 const bindEd=()=>document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{const d=getDr();if(d&&d.id!==b.dataset.ed&&!confirm('Tenés datos sin guardar en el formulario. Si editás este registro se descartan. ¿Continuar?'))return;clrDr();editId=b.dataset.ed;render();scrollTo(0,0)});
@@ -218,17 +225,14 @@ function donut(c){const t=c.ok+c.dev+c.nc||1,R=80,C=2*Math.PI*R;let o=0;
 const dk=d=>`<td style="font-weight:700;color:${d<-0.05?'#a1241f':d>0.05?'#1d6b3a':'inherit'}">${d>0.05?'+':''}${n1(d)}</td>`;
 function ptab(s){const e=Object.entries(s.prod),t=e.reduce((a,[,o])=>({n:a.n+o.n,rem:a.rem+o.rem,real:a.real+o.real}),{n:0,rem:0,real:0});
  return `<div class="tw"><table><tr><th>Producto</th><th>Cant.</th><th>Kg remito</th><th>Kg real</th><th>Dif. kg</th><th title="Cantidad promedio de recepciones por semana">Cant. prom.</th></tr>${e.map(([k,o])=>`<tr><td>${esc(k)}</td><td>${o.n}</td><td>${n1(o.rem)}</td><td>${n1(o.real)}</td>${dk(o.real-o.rem)}<td>${n1(o.n/s.span)}</td></tr>`).join('')||'<tr><td colspan="6">Sin datos</td></tr>'}${e.length?`<tr style="font-weight:700;background:#f1f6f2"><td>Total</td><td>${t.n}</td><td>${n1(t.rem)}</td><td>${n1(t.real)}</td>${dk(t.real-t.rem)}<td>${n1(t.n/s.span)}</td></tr>`:''}</table></div>`}
-function sto(){const n=all().length,mb=n*0.4/1024,p=mb/500*100;return `<div class="card"><h2>Espacio de almacenamiento</h2><div style="background:#e8efe9;border-radius:99px;height:12px;overflow:hidden"><div style="width:${Math.min(100,Math.max(p,0.5))}%;height:100%;background:${p>=80?'var(--nc)':p>=60?'var(--dv)':'var(--ok)'}"></div></div><div class="hint" style="margin-top:8px">${n.toLocaleString('es-AR')} registros guardados · uso estimado ${mb<10?mb.toFixed(2):Math.round(mb)} MB de 500 MB (${p<1?'menos del 1':Math.round(p)}%) del plan gratuito. ${p>=80?'⚠ Descargá el Excel de cada sucursal y archivá los registros antiguos.':'Hay espacio de sobra: no hace falta borrar registros.'}</div></div>`}
+function sto(){const n=all().length+allE().length,mb=n*0.4/1024,p=mb/500*100;return `<div class="card"><h2>Espacio de almacenamiento</h2><div style="background:#e8efe9;border-radius:99px;height:12px;overflow:hidden"><div style="width:${Math.min(100,Math.max(p,0.5))}%;height:100%;background:${p>=80?'var(--nc)':p>=60?'var(--dv)':'var(--ok)'}"></div></div><div class="hint" style="margin-top:8px">${n.toLocaleString('es-AR')} registros guardados · uso estimado ${mb<10?mb.toFixed(2):Math.round(mb)} MB de 500 MB (${p<1?'menos del 1':Math.round(p)}%) del plan gratuito. ${p>=80?'⚠ Descargá el Excel de cada sucursal y archivá los registros antiguos.':'Hay espacio de sobra: no hace falta borrar registros.'}</div></div>`}
 const KF={ok:['T conforme (≤ 7 °C)','ok',r=>r.est==='ok'],dev:['T en desviación (7 a 10 °C)','dev',r=>r.est==='dev'],nc:['T no conforme (> 10 °C)','nc',r=>r.est==='nc'],dp:['Desvío de peso > 3 %','nc',r=>r.dp],d4:['Más de 4 días desde faena','nc',r=>r.d4]};
 function viewCal(){const l=filt(),s=stats(l),f1=v=>n1(v)+'%',N=l.length,pc=v=>n1(v/(N||1)*100)+'%',lt=kf&&KF[kf]?l.filter(KF[kf][2]):l,sn=flt.suc?'Sucursal '+esc(flt.suc):'Todas las sucursales';
  const K=(k,c,lab,val,s1,s2)=>`<div class="card kpi ${c} ${kf&&kf===k?'act':''}" data-kf="${k}" role="button" tabindex="0" title="${k?'Tocá para ver solo estos registros en la tabla de abajo':'Tocá para ver todos los registros'}"><div class="kl">${lab}</div><b>${val}</b><span>${s1}</span><span>${s2}</span></div>`;
  const ed=editId?all().find(r=>r.id===editId):null;if(editId&&!ed)editId=null;const m=gm();
- return head('Perfil Calidad · Análisis de todas las sucursales')+`<main>${m?`<div class="off">${esc(m)}</div>`:''}
+ return head('Perfil Calidad · Carnicería')+`<main>${tabs()}${m?`<div class="off">${esc(m)}</div>`:''}
  ${ed?`<div class="card"><label>Quién modifica (Calidad) *</label><input id="resp" value="${esc(resp)}" placeholder="Nombre y apellido"><div class="hint">Queda registrado en la columna Modificaciones como "Nombre (Calidad)".</div></div>${formBlock(ed)}`:''}
- <div class="card"><div class="row"><div><label>Fecha de inicio</label><input type="date" id="fi" value="${flt.from}"></div><div><label>Fecha de fin</label><input type="date" id="fe" value="${flt.to}"></div>
- <div><label>Sucursal</label><select id="fs"><option value="">Todas</option>${['Independencia','Paunero','Arenales','San Martín'].map(x=>`<option ${flt.suc===x?'selected':''}>${x}</option>`).join('')}</select></div>
- <div style="flex:none"><button class="btn o s" id="pw">Esta semana</button> <button class="btn o s" id="pm">Este mes</button> <button class="btn o s" id="pp">Mes anterior</button> <button class="btn o s" id="pc">Todo</button></div>
- <div style="flex:none"><button class="btn" id="xl">⬇ Descargar Excel</button></div></div><div class="hint">${N} recepciones en el período · el Excel incluye solo lo filtrado (fechas y sucursal) · los porcentajes son sobre el total de recepciones del período</div></div>
+ ${fcard(N+' recepciones en el período · el Excel incluye solo lo filtrado (fechas y sucursal) · los porcentajes son sobre el total de recepciones del período')}
  <div class="grid k">${K('','b','Temperatura promedio',n1(s.avg)+' °C','Ideal ≤ 7 °C',N+' recepciones')}
  ${K('ok','','% de entregas con T conforme',pc(s.c.ok),'T ≤ 7 °C · meta ≥ 60%',s.c.ok+' de '+N)}
  ${K('dev','y','% de entregas con T en desviación',pc(s.c.dev),'7 < T ≤ 10 °C · meta ≤ 35%',s.c.dev+' de '+N)}
@@ -240,11 +244,19 @@ function viewCal(){const l=filt(),s=stats(l),f1=v=>n1(v)+'%',N=l.length,pc=v=>n1
  
  <div class="card" id="reg"><h2>Registros del período <small style="color:var(--mu);font-weight:400">${kf?lt.length+' de '+N:N+' en total'}</small></h2>${kf&&KF[kf]?`<div class="row" style="align-items:center;margin:-4px 0 12px"><span class="tag ${KF[kf][1]}" style="flex:none">Filtro: ${KF[kf][0]}</span><button type="button" class="btn o s" id="kx" style="flex:none">✕ Quitar filtro</button></div>`:'<div class="hint" style="margin:-8px 0 12px">Tocá un indicador de arriba para ver solo esos registros.</div>'}${rows(lt,1,1)}</div>${sto()}</main>`}
 
-function bindCal(){const set=(a,b)=>{flt.from=a;flt.to=b;render()};
+const fcard=h=>`<div class="card"><div class="row"><div><label>Fecha de inicio</label><input type="date" id="fi" value="${flt.from}"></div><div><label>Fecha de fin</label><input type="date" id="fe" value="${flt.to}"></div>
+ <div><label>Sucursal</label><select id="fs"><option value="">Todas</option>${['Independencia','Paunero','Arenales','San Martín'].map(x=>`<option ${flt.suc===x?'selected':''}>${x}</option>`).join('')}</select></div>
+ <div style="flex:none"><button class="btn o s" id="pw">Esta semana</button> <button class="btn o s" id="pm">Este mes</button> <button class="btn o s" id="pp">Mes anterior</button> <button class="btn o s" id="pc">Todo</button></div>
+ <div style="flex:none"><button class="btn" id="xl">⬇ Descargar Excel</button></div></div><div class="hint">${h}</div></div>`;
+const esHoy=r=>r.f_recepcion===today()||(r.created_at&&new Date(r.created_at).toLocaleDateString('en-CA')===today());
+const tabs=()=>`<div class="card" style="padding:12px 16px"><div class="tabs"><button type="button" class="tab ${sec==='c'?'on':''}" data-sec="c">🥩 Carnicería</button><button type="button" class="tab ${sec==='e'?'on':''}" data-sec="e">📦 Envasados al vacío</button></div></div>`;
+function bindFilt(){const set=(a,b)=>{flt.from=a;flt.to=b;render()};
  $('#fi').onchange=e=>set(e.target.value,flt.to);$('#fe').onchange=e=>set(flt.from,e.target.value);
  $('#fs').onchange=e=>{flt.suc=e.target.value;render()};
  $('#pw').onclick=()=>set(wk(today()),today());$('#pm').onclick=()=>set(today().slice(0,8)+'01',today());$('#pp').onclick=()=>{const d=new Date(),a=new Date(d.getFullYear(),d.getMonth()-1,1),b=new Date(d.getFullYear(),d.getMonth(),0);set(a.toLocaleDateString('en-CA'),b.toLocaleDateString('en-CA'))};$('#pc').onclick=()=>set('','');
- $('#xl').onclick=()=>excel(filt(),flt.suc,flt.from,flt.to);
+ $('#xl').onclick=()=>excel(filt(),flt.suc,flt.from,flt.to)}
+function bindCal(){bindFilt();
+
  bindEd();if(editId)bindForm();
  document.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>{const id=b.dataset.dl,r=all().find(x=>x.id===id);if(!r)return;
   if(!confirm(`¿Borrar definitivamente este registro?\n\n${r.sucursal} · ${r.producto} · ${fd(r.f_recepcion)} · ${n1(r.temp)} °C · resp. ${r.responsable}\n\nNo se puede deshacer.`))return;
@@ -263,8 +275,109 @@ function excel(l,suc,from,to){if(typeof XLSX==='undefined'){alert('Para descarga
  const f1=v=>+v.toFixed(1),R=[['RESUMEN · '+mes],['Sucursal',suc||'Todas'],[],['Indicador','Valor','Meta'],['Temperatura promedio (°C)',f1(s.avg),'≤ 7'],['% de entregas con T conforme (≤ 7 °C)',f1(s.p('ok')),'≥ 60'],['% de entregas con T en desviación (7 a 10 °C)',f1(s.p('dev')),'≤ 35'],['% de entregas con T no conforme (> 10 °C)',f1(s.p('nc')),'≤ 5'],['% de entregas con desvío de peso > 3%',f1(s.dp/(l.length||1)*100),'0'],['% de entregas con más de 4 días desde faena',f1(s.d4/(l.length||1)*100),'0'],['Total de recepciones',l.length,''],[],
   ['Producto','Cantidad','Kg remito','Kg real','Dif. kg'],...Object.entries(s.prod).map(([k,o])=>[k,o.n,f1(o.rem),f1(o.real),f1(o.real-o.rem)]),[],['Período ('+(flt.grp==='sem'?'semanal':'mensual')+')','Producto','Cantidad','Kg remito','Kg real'],...s.per.map(o=>[o.k,o.prod,o.n,f1(o.rem),f1(o.real)])];
  const w2=XLSX.utils.aoa_to_sheet(R);w2['!cols']=[46,16,14,14,14].map(w=>({wch:w}));
- const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Registros');XLSX.utils.book_append_sheet(wb,w2,'Resumen');
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Registros');XLSX.utils.book_append_sheet(wb,w2,'Resumen');excelE(wb,filtE(),suc,mes);
  XLSX.writeFile(wb,`CAR-0003_${(suc||'Todas').replace(/\s/g,'')}_${today()}.xlsx`)}
-async function restDr(){const d=getDr();if(!d)return;if(d.id)editId=d.id;const fx=await IDB.get('df_'+user.n);if(fx&&fx.id===d.id)foto=fx.img}
-IDB.open().then(async()=>{if(user){CACHE[ck()]=(await IDB.get(ck()))||[];await restDr()}render();if(user)sync()});
+// ---------- Envasados al vacío ----------
+const PRODE=['Colita de cuadril','Entraña','Bife de chorizo','Vacío'];
+const ECOLS=['id','sucursal','responsable','producto','proveedor','f_recepcion','f_vencimiento','cantidad','peso','observaciones','created_at','historial'];
+const fullE=r=>{const o={};ECOLS.forEach(k=>o[k]=r[k]===undefined?(k==='historial'?[]:null):r[k]);return o};
+const ckE=()=>ck()+'_e',gcE=()=>CACHE[ckE()]||[],scE=v=>{CACHE[ckE()]=v;IDB.set(ckE(),v)};
+const clean=t=>String(t||'').trim().replace(/\s+/g,' ');
+const pnameL=(t,L)=>{t=clean(t);const k=norm(t),f=L.find(x=>norm(x)===k);return f||(t?t[0].toUpperCase()+t.slice(1).toLowerCase():t)};
+const CAMPOSE=[['producto','Producto'],['proveedor','Proveedor'],['f_recepcion','Fecha de recepción',fd],['f_vencimiento','Fecha de vencimiento',fd],['cantidad','Cantidad (u)',n1],['peso','Peso (Kg)',n1],['observaciones','Observaciones']];
+const difsE=(a,b)=>CAMPOSE.filter(([k,,f])=>f===n1?+a[k]!==+b[k]:String(a[k]??'')!==String(b[k]??'')).map(([k,l,f])=>[l,f?f(a[k]):String(a[k]||'-'),f?f(b[k]):String(b[k]||'-')]);
+const EFF=['ep','epo','epv','efr','efv','eq','ekg','eob'];
+const getDrE=()=>user?LS('dre_'+user.n):null,clrDrE=()=>{if(user)LS('dre_'+user.n,null)};
+const saveDrE=()=>{if(!user||!$('#fE'))return;const f={};EFF.forEach(k=>{const e=$('#'+k);if(e)f[k]=e.value});LS('dre_'+user.n,{id:editE||'',f})};
+function calcE(r){const d=r.f_vencimiento&&r.f_recepcion?Math.round((new Date(r.f_vencimiento)-new Date(r.f_recepcion))/864e5):null;return{...r,dv:d,v15:d!==null&&d<15}}
+function allE(){const m=new Map();[...gcE(),...(LS('qe')||[])].forEach(r=>m.set(r.id,r));const dl=LS('qde')||[];let l=[...m.values()].filter(r=>!dl.includes(r.id));if(user.role==='suc')l=l.filter(r=>r.sucursal===user.n);
+ return l.map(calcE).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))}
+const filtE=()=>allE().filter(r=>(!flt.from||r.f_recepcion>=flt.from)&&(!flt.to||r.f_recepcion<=flt.to)&&(!flt.suc||r.sucursal===flt.suc));
+async function syncE(){const dd=LS('qde')||[];
+ if(dd.length){const r=await fetch(B+'/envasados?id=in.('+dd.join(',')+')',{method:'DELETE',headers:HD});if(!r.ok)throw new Error('Borrar: '+r.status+' '+(await r.text()).slice(0,140));LS('qde',[]);scE(gcE().filter(x=>!dd.includes(x.id)))}
+ const q=LS('qe')||[];
+ if(q.length){const r=await fetch(B+'/envasados?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q.map(fullE))});if(!r.ok)throw new Error('Guardar: '+r.status+' '+(await r.text()).slice(0,140));LS('qe',[])}
+ const f=user.role==='suc'?'&sucursal=eq.'+encodeURIComponent(user.n):'';
+ const full=Date.now()-lastFullE>6e5||!gcE().length,rows=await pull(f,full,'envasados');scE(full?rows:mergeRows(gcE(),rows));if(full)lastFullE=Date.now()}
+const tagV=r=>r.dv===null?'-':`<span class="tag ${r.v15?'nc':'ok'}">${r.dv}${r.v15?' ⚠':''}</span>`;
+const abE=r=>`<button type="button" class="btn o s" data-ede="${r.id}">✏️ Editar</button> <button type="button" class="btn o s dl" data-dle="${r.id}">🗑 Borrar</button>`;
+function rowsE(l,suc,act){if(vw==='m')return l.length?l.map(r=>`<div class="rc ${r.v15?'bad':''}"><div class="rt"><b>${esc(r.producto)}</b>${tagV(r)}</div><div class="rg"><span>Proveedor</span><b>${esc(r.proveedor)}</b><span>Recepción</span><b>${fd(r.f_recepcion)}</b><span>Vencimiento</span><b>${fd(r.f_vencimiento)}</b><span>Días a venc.</span><b>${r.dv??'-'}${r.v15?' ⚠ menos de 15':''}</b><span>Cantidad</span><b>${n1(r.cantidad)} u</b><span>Peso</span><b>${n1(r.peso)} Kg</b>${r.observaciones?`<span>Observaciones</span><b>${esc(r.observaciones)}</b>`:''}${suc?`<span>Sucursal</span><b>${esc(r.sucursal)}</b>`:''}<span>Responsable</span><b>${esc(r.responsable)}</b><span>Modificaciones</span><b>${hcell(r)}</b></div>${act?`<div class="ac">${abE(r)}</div>`:''}</div>`).join(''):'<p class="hint">Sin registros</p>';
+ return `<div class="tw"><table><tr><th>Producto</th><th>Proveedor</th><th>Recepción</th><th>Vencimiento</th><th>Días a venc.</th><th>Cantidad</th><th>Peso (Kg)</th><th>Observaciones</th>${suc?'<th>Sucursal / Resp.</th>':'<th>Responsable</th>'}<th>Modificaciones</th>${act?'<th>Acciones</th>':''}</tr>
+${l.map(r=>`<tr class="${r.v15?'bad':''}"><td>${esc(r.producto)}</td><td>${esc(r.proveedor)}</td><td>${fd(r.f_recepcion)}</td><td>${fd(r.f_vencimiento)}</td><td>${tagV(r)}</td><td>${n1(r.cantidad)}</td><td>${n1(r.peso)}</td><td style="white-space:normal;min-width:140px">${esc(r.observaciones||'')}</td><td>${suc?esc(r.sucursal)+' · ':''}${esc(r.responsable)}</td><td>${hcell(r)}</td>${act?`<td>${abE(r)}</td>`:''}</tr>`).join('')||'<tr><td colspan="12">Sin registros</td></tr>'}</table></div>`}
+function formE(ed){const d=getDrE(),D=d&&d.id===(ed?ed.id:'')?d.f:null,V=(k,def)=>D&&D[k]!=null?D[k]:def;if(d&&!D)LS('dre_'+user.n,null);
+ const pv=V('ep',ed?(PRODE.includes(ed.producto)?ed.producto:'__o'):PRODE[0]),oo=pv==='__o',provs=[...new Set(allE().map(r=>r.proveedor).filter(Boolean))].sort();
+ return `<div class="grid two"><form class="card" id="fE"><h2>${ed?'Editar envasado'+(user.role==='cal'?' · '+esc(ed.sucursal):''):'Nueva recepción · Envasado al vacío'}</h2>${user.role==='suc'&&gm()?`<div class="off" style="margin-bottom:12px">${gm()}</div>`:''}<div class="grid">
+ <div><label>Producto *</label><select id="ep">${PRODE.map(p=>`<option ${pv===p?'selected':''}>${p}</option>`).join('')}<option value="__o" ${oo?'selected':''}>Otro…</option></select><input id="epo" placeholder="Nombre del producto" value="${esc(V('epo',ed&&!PRODE.includes(ed.producto)?ed.producto:''))}" style="display:${oo?'block':'none'};margin-top:6px"><div class="hint" id="eoh" style="display:${oo?'block':'none'}">Mayúsculas, tildes y espacios no importan para el conteo.</div></div>
+ <div><label>Proveedor / frigorífico *</label><input id="epv" list="provs" placeholder="Ej: Frigorífico X" value="${esc(V('epv',ed?ed.proveedor:''))}"><datalist id="provs">${provs.map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div>
+ <div><label>Fecha de recepción *</label><input type="date" id="efr" value="${esc(V('efr',ed?ed.f_recepcion:today()))}"></div>
+ <div><label>Fecha de vencimiento *</label><input type="date" id="efv" value="${esc(V('efv',ed?ed.f_vencimiento:''))}"></div>
+ <div><label>Cantidad (unidades) *</label><input type="number" step="any" inputmode="decimal" id="eq" value="${esc(V('eq',ed?ed.cantidad:''))}"></div>
+ <div><label>Peso total (Kg) *</label><input type="number" step="any" inputmode="decimal" id="ekg" value="${esc(V('ekg',ed?ed.peso:''))}"></div>
+ <div style="grid-column:1/-1"><label>Observaciones (opcional)</label><textarea id="eob" placeholder="Ej: faltaron 2 unidades del remito">${esc(V('eob',ed?ed.observaciones||'':''))}</textarea></div></div>
+ <br><button class="btn">${ed?'💾 Guardar cambios':'+ Guardar registro'}</button> ${ed?'<button type="button" class="btn o" id="cxE">Cancelar</button>':''}<div class="err" id="feE"></div>${user.role==='suc'?'<div class="hint" style="margin-top:10px">⚠ Revisá bien antes de guardar: una vez guardado, solo Calidad puede corregirlo.</div>':''}</form>
+ <div class="card auto"><h2>Análisis automático</h2><div><span>Días hasta el vencimiento</span><b id="e1">-</b></div><div><span>Resultado</span><b id="e2">-</b></div>
+ <div class="hint" style="margin-top:12px"><span class="dot" style="background:var(--ok)"></span>15 días o más hasta el vencimiento → Conforme<br><span class="dot" style="background:var(--nc)"></span>Menos de 15 días → No conforme</div></div></div>`}
+function bindFormE(){const g=id=>$('#'+id).value,p=$('#ep');
+ ['input','change'].forEach(ev=>$('#fE').addEventListener(ev,saveDrE));
+ p.onchange=()=>{$('#epo').style.display=$('#eoh').style.display=p.value==='__o'?'block':'none'};
+ if($('#cxE'))$('#cxE').onclick=()=>{editE=null;clrDrE();render()};
+ const live=()=>{const fr=g('efr'),fv=g('efv');if(fr&&fv){const r=calcE({f_recepcion:fr,f_vencimiento:fv});$('#e1').innerHTML=`<span class="tag ${r.v15?'nc':'ok'}">${r.dv} días${r.v15?' ⚠':''}</span>`;$('#e2').innerHTML=`<span class="tag ${r.v15?'nc':'ok'}">${r.dv<0?'Vencido · No conforme':r.v15?'No conforme':'Conforme'}</span>`}else{$('#e1').textContent=$('#e2').textContent='-'}};
+ ['efr','efv'].forEach(i=>$('#'+i).addEventListener('input',live));live();
+ $('#fE').onsubmit=e=>{e.preventDefault();resp=$('#resp').value.trim();SSt.setItem('r',resp);const fe=$('#feE'),prod=p.value==='__o'?pnameL(g('epo'),PRODE):p.value,prov=(x=>allE().map(r=>r.proveedor).find(y=>y&&norm(y)===norm(x))||x)(clean(g('epv')));
+  if(!resp){fe.textContent=user.role==='cal'?'Completá tu nombre (quién modifica)':'Completá el responsable de la carga';return}
+  if(!prod){fe.textContent='Completá el producto';return}
+  if(!prov){fe.textContent='Completá el proveedor';return}
+  if(!g('efr')||!g('efv')){fe.textContent='Completá la fecha de recepción y la de vencimiento';return}
+  if(!(+g('eq')>0)||!(+g('ekg')>0)){fe.textContent='Completá la cantidad y el peso (mayores a 0)';return}
+  const prev=editE?allE().find(x=>x.id===editE):null,id=editE||uid();
+  const r={id,sucursal:prev?prev.sucursal:user.n,responsable:prev?prev.responsable:resp,producto:prod,proveedor:prov,f_recepcion:g('efr'),f_vencimiento:g('efv'),cantidad:+g('eq'),peso:+g('ekg'),observaciones:clean(g('eob'))||null,created_at:(prev&&prev.created_at)||new Date().toISOString(),historial:prev?hist(prev):[]};
+  if(prev){const ch=difsE(prev,r);if(!ch.length){msg='No hubo cambios para guardar';msgT=Date.now();editE=null;clrDrE();render();return}r.historial=[...hist(prev),{u:user.role==='cal'?resp+' (Calidad)':resp,t:new Date().toISOString(),c:ch}]}
+  LS('qe',[...(LS('qe')||[]).filter(x=>x.id!==id),r]);msg=editE?'Cambios guardados':'Registro guardado';msgT=Date.now();editE=null;clrDrE();sync(true)}}
+function viewSucE(){const h=allE().filter(esHoy);
+ return head(`${user.n} · Envasados al vacío`)+`<main>${tabs()}
+ <div class="card"><label>Responsable de la carga *</label><input id="resp" value="${esc(resp)}" placeholder="Nombre y apellido"></div>
+ ${formE(null)}
+ <div class="card"><h2>Hoy · ${user.n} · Envasados <span class="pill" style="background:var(--g)">${h.length}</span></h2><div class="hint" style="margin:-8px 0 12px">Solo lectura. Si hay un error en una carga, avisá a Calidad para que lo corrija.</div>${rowsE(h,0,0)}</div></main>`}
+function bindSucE(){editE=null;bindFormE();$('#resp').oninput=e=>{resp=e.target.value;SSt.setItem('r',resp)}}
+function statsE(l){const N=l.length,prod={},prov={},nm={},pn=x=>nm[norm(String(x||''))]??=pnameL(x,PRODE),pc={};l.forEach(r=>{const k=norm(String(r.proveedor||''));(pc[k]??={})[clean(r.proveedor)]=((pc[k]||{})[clean(r.proveedor)]||0)+1});const pv=x=>{const c=pc[norm(String(x||''))]||{};return Object.keys(c).sort((a,b)=>c[b]-c[a])[0]||clean(x)};let u=0,kg=0,v15=0,sd=0,nd=0;
+ l.forEach(r=>{u+=+r.cantidad||0;kg+=+r.peso||0;if(r.v15)v15++;if(r.dv!==null){sd+=r.dv;nd++}
+  const o=prod[pn(r.producto)]??={n:0,u:0,kg:0,sd:0,nd:0,v15:0};o.n++;o.u+=+r.cantidad||0;o.kg+=+r.peso||0;if(r.dv!==null){o.sd+=r.dv;o.nd++}if(r.v15)o.v15++;
+  const q=prov[pv(r.proveedor)||'-']??={n:0,v15:0};q.n++;if(r.v15)q.v15++});
+ const span=N?Math.max(1,Math.ceil((Math.max(...l.map(r=>new Date(r.f_recepcion)))-Math.min(...l.map(r=>new Date(r.f_recepcion))))/6048e5+1)):1;
+ return{N,u,kg,v15,avg:nd?sd/nd:0,nd,prod,prov:Object.entries(prov).sort((a,b)=>b[1].v15/b[1].n-a[1].v15/a[1].n||b[1].n-a[1].n),span}}
+function viewCalE(){const l=filtE(),s=statsE(l),N=s.N,lt=kfe==='v'?l.filter(r=>r.v15):l,sn=flt.suc?'Sucursal '+esc(flt.suc):'Todas las sucursales',red=v=>v?`<td style="color:#a1241f;font-weight:700">${v}</td>`:'<td>0</td>';
+ const K=(k,c,lab,val,s1,s2)=>`<div class="card kpi ${c} ${k===null?'nf':''} ${k&&kfe===k?'act':''}" ${k!==null?`data-kfe="${k}" role="button" tabindex="0"`:''}><div class="kl">${lab}</div><b>${val}</b><span>${s1}</span><span>${s2}</span></div>`;
+ const ed=editE?allE().find(r=>r.id===editE):null;if(editE&&!ed)editE=null;const m=gm(),e=Object.entries(s.prod);
+ return head('Perfil Calidad · Envasados al vacío')+`<main>${tabs()}${m?`<div class="off">${esc(m)}</div>`:''}
+ ${ed?`<div class="card"><label>Quién modifica (Calidad) *</label><input id="resp" value="${esc(resp)}" placeholder="Nombre y apellido"><div class="hint">Queda registrado en la columna Modificaciones como "Nombre (Calidad)".</div></div>${formE(ed)}`:''}
+ ${fcard(N+' recepciones de envasados en el período · el Excel incluye carnicería y envasados (hoja "Envasados") según las fechas y la sucursal elegidas')}
+ <div class="grid k5">${K('','b','Recepciones de envasados',N,'en el período','tocá para ver todas')}
+ ${K(null,'b','Unidades recibidas',n1(s.u),'suma de cantidades','&nbsp;')}
+ ${K(null,'b','Kg recibidos',n1(s.kg),'suma de pesos','&nbsp;')}
+ ${K('v','r','% de entregas con vencimiento < 15 días',n1(s.v15/(N||1)*100)+'%',s.v15+' de '+N+' · meta 0%','tocá para ver cuáles')}
+ ${K(null,'b','Días promedio hasta el vencimiento',s.nd?Math.round(s.avg):'-','al momento de recibir','&nbsp;')}</div>
+ <div class="grid ds2"><div class="card"><h2>Cantidades por producto</h2><div class="sn">${sn}</div><div class="tw"><table><tr><th>Producto</th><th>Recep.</th><th>Unidades</th><th>Kg</th><th>Prom. días</th><th>Venc. &lt; 15 d</th><th title="Promedio semanal de unidades">Cant. prom.</th></tr>
+ ${e.map(([k,o])=>`<tr><td>${esc(k)}</td><td>${o.n}</td><td>${n1(o.u)}</td><td>${n1(o.kg)}</td><td>${o.nd?Math.round(o.sd/o.nd):'-'}</td>${red(o.v15)}<td>${n1(o.u/s.span)}</td></tr>`).join('')||'<tr><td colspan="7">Sin datos</td></tr>'}
+ ${e.length?`<tr style="font-weight:700;background:#f1f6f2"><td>Total</td><td>${N}</td><td>${n1(s.u)}</td><td>${n1(s.kg)}</td><td>${s.nd?Math.round(s.avg):'-'}</td>${red(s.v15)}<td>${n1(s.u/s.span)}</td></tr>`:''}</table></div></div>
+ <div class="card"><h2>Incumplimientos por proveedor</h2><div class="sn">${sn}</div><div class="tw"><table><tr><th>Proveedor</th><th>Recep.</th><th>Venc. &lt; 15 d</th></tr>${s.prov.map(([k,o])=>`<tr><td>${esc(k)}</td><td>${o.n}</td>${o.v15?`<td style="color:#a1241f;font-weight:700">${o.v15} · ${n1(o.v15/o.n*100)}%</td>`:'<td>0 · 0%</td>'}</tr>`).join('')||'<tr><td colspan="3">Sin datos</td></tr>'}</table></div><div class="hint" style="margin-top:8px">Ordenado de peor a mejor.</div></div></div>
+ <div class="card" id="rege"><h2>Registros del período <small style="color:var(--mu);font-weight:400">${kfe?lt.length+' de '+N:N+' en total'}</small></h2>${kfe?`<div class="row" style="align-items:center;margin:-4px 0 12px"><span class="tag nc" style="flex:none">Filtro: vencimiento &lt; 15 días</span><button type="button" class="btn o s" id="kxe" style="flex:none">✕ Quitar filtro</button></div>`:'<div class="hint" style="margin:-8px 0 12px">Tocá un indicador de arriba para filtrar esta tabla.</div>'}${rowsE(lt,1,1)}</div>${sto()}</main>`}
+function bindCalE(){bindFilt();if(editE)bindFormE();
+ document.querySelectorAll('[data-ede]').forEach(b=>b.onclick=()=>{const d=getDrE();if(d&&d.id!==b.dataset.ede&&editE&&!confirm('Tenés cambios sin guardar. ¿Descartarlos?'))return;clrDrE();editE=b.dataset.ede;render();scrollTo(0,0)});
+ document.querySelectorAll('[data-dle]').forEach(b=>b.onclick=()=>{const id=b.dataset.dle,r=allE().find(x=>x.id===id);if(!r)return;
+  if(!confirm(`¿Borrar definitivamente este registro?\n\n${r.sucursal} · ${r.producto} · ${r.proveedor} · recibido ${fd(r.f_recepcion)} · vence ${fd(r.f_vencimiento)} · resp. ${r.responsable}\n\nNo se puede deshacer.`))return;
+  LS('qe',(LS('qe')||[]).filter(x=>x.id!==id));scE(gcE().filter(x=>x.id!==id));LS('qde',[...(LS('qde')||[]),id]);if(editE===id){editE=null;clrDrE()}msg='Registro borrado';msgT=Date.now();sync(true)});
+ document.querySelectorAll('[data-kfe]').forEach(c=>c.onclick=c.onkeydown=e=>{if(e.type==='keydown'&&e.key!=='Enter')return;const k=c.dataset.kfe;kfe=kfe===k?'':k;render();const t=$('#rege');if(kfe&&t)t.scrollIntoView({behavior:'smooth',block:'start'})});
+ if($('#kxe'))$('#kxe').onclick=()=>{kfe='';render()}}
+function excelE(wb,l,suc,mes){const s=statsE(l),f1=v=>+(+v).toFixed(1);
+ const ws=XLSX.utils.aoa_to_sheet([['CAMPO VERDE','','CONTROL DE RECEPCIÓN · ENVASADOS AL VACÍO'],['Período: '+mes],['Sucursal: '+(suc||'Todas')],[],
+  ['Producto','Proveedor','Fecha de recepción','Fecha de vencimiento','Días hasta venc.','Venc. < 15 días','Cantidad (u)','Peso (Kg)','Observaciones','Sucursal','Responsable','Modificaciones'],
+  ...l.map(r=>[r.producto,r.proveedor||'',fd(r.f_recepcion),fd(r.f_vencimiento),r.dv??'',r.v15?'SI':'NO',+r.cantidad,+r.peso,r.observaciones||'',r.sucursal,r.responsable,hist(r).map(m=>fdt(m.t)+' '+m.u+': '+(m.c||[]).map(c=>c[0]+' '+c[1]+' → '+c[2]).join('; ')).join(' | ')])]);
+ ws['!cols']=[20,22,14,14,10,10,10,10,30,16,20,50].map(w=>({wch:w}));
+ const R=[['RESUMEN ENVASADOS · '+mes],['Sucursal',suc||'Todas'],[],['Indicador','Valor','Meta'],['Recepciones de envasados',s.N,''],['Unidades recibidas',f1(s.u),''],['Kg recibidos',f1(s.kg),''],['% de entregas con vencimiento < 15 días',f1(s.v15/(s.N||1)*100),'0'],['Días promedio hasta el vencimiento',s.nd?Math.round(s.avg):'',''],[],
+  ['Producto','Recepciones','Unidades','Kg','Prom. días a venc.','Venc. < 15 días'],...Object.entries(s.prod).map(([k,o])=>[k,o.n,f1(o.u),f1(o.kg),o.nd?Math.round(o.sd/o.nd):'',o.v15]),[],
+  ['Proveedor','Recepciones','Venc. < 15 días','% incumplimiento'],...s.prov.map(([k,o])=>[k,o.n,o.v15,f1(o.v15/o.n*100)])];
+ const w2=XLSX.utils.aoa_to_sheet(R);w2['!cols']=[42,14,12,12,16,14].map(w=>({wch:w}));
+ XLSX.utils.book_append_sheet(wb,ws,'Envasados');XLSX.utils.book_append_sheet(wb,w2,'Resumen envasados')}
+async function restDr(){const de=getDrE();if(de&&de.id&&user.role==='cal')editE=de.id;const d=getDr();if(!d)return;if(d.id&&user.role==='cal')editId=d.id;const fx=await IDB.get('df_'+user.n);if(fx&&fx.id===d.id)foto=fx.img}
+IDB.open().then(async()=>{if(user){CACHE[ck()]=(await IDB.get(ck()))||[];CACHE[ckE()]=(await IDB.get(ckE()))||[];await restDr()}render();if(user)sync()});
 </script></body></html>
