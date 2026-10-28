@@ -53,10 +53,13 @@ main>*,.grid>*{min-width:0}main{width:100%}.tw{max-width:100%}
 .ph{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.ph img{width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--ln)}.ph>div{flex:1;min-width:180px}
 details summary{cursor:pointer;font-weight:600;color:var(--g)}.hl{white-space:normal;min-width:230px;max-width:380px;font-size:12px;color:var(--tx);margin-top:6px;text-align:left;font-weight:400}.hl div{padding:5px 0;border-top:1px dashed var(--ln)}
 td a,.rg a{color:var(--g);font-weight:600}
+.stg{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;color:var(--c);border:1.5px solid var(--c);background:#fff;white-space:nowrap}
+.thb{background:none;border:0;padding:0;font:inherit;font-size:12px;letter-spacing:.04em;color:var(--g);text-transform:uppercase;font-weight:700;cursor:pointer}
 .tabs{display:flex;gap:8px;flex-wrap:wrap}.tab{border:1px solid var(--g);background:#fff;color:var(--g);border-radius:99px;padding:9px 16px;font-weight:700}.tab.on{background:var(--g);color:#fff}
 tr.bad td{background:#fff5f5}.rc.bad{background:#fff5f5;border-color:#f3c9c7}textarea{width:100%;padding:11px;border:1px solid #cfd9d2;border-radius:10px;font:inherit;min-height:60px}
 .grid.k5{grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.grid.k5 .kpi{padding:12px 13px}@media(max-width:1050px){.grid.k5{grid-template-columns:repeat(2,minmax(0,1fr))}}body.mob .grid.k5{grid-template-columns:1fr 1fr}
-.kpi.nf{cursor:default}.ds2{grid-template-columns:minmax(0,2.2fr) minmax(0,1fr)}@media(max-width:900px){.ds2{grid-template-columns:minmax(0,1fr)}}
+.kpi.nf{cursor:default}.ban{border-radius:14px;padding:14px 16px;font-weight:600}.ban.bj{background:#fdf6d8;border:1px solid #ecd27a;color:#6b5410}.ban.bm{background:#fde8e7;border:1px solid #f2b8b5;color:#8a2421}.ban.bx{background:#eef1ef;border:1px solid #cfd9d2;color:#3d4a42}
+.wka td,.wka th{text-align:center}.wka td:first-child,.wka th:first-child{text-align:left}.ds2{grid-template-columns:minmax(0,2.2fr) minmax(0,1fr)}@media(max-width:900px){.ds2{grid-template-columns:minmax(0,1fr)}}
 </style></head>
 <body><div id="app"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -79,22 +82,38 @@ const fd=d=>d?d.split('-').reverse().join('/'):'-';
 const n1=v=>(+v).toLocaleString('es-AR',{maximumFractionDigits:1});
 const SK=(CONFIG.SUPABASE_KEY||'').trim(),B=(CONFIG.SUPABASE_URL||'').trim().replace(/\/+$/,'').replace(/\/rest\/v1$/,'')+'/rest/v1',HD={apikey:SK,'Content-Type':'application/json',...(SK.startsWith('eyJ')?{Authorization:'Bearer '+SK}:{})};
 const PROD=['Media Res','Parrillero','Cuarto','Paleta','Bife','Asado'],CLA=['2D-VQ','2D-NT','SIN CLASIFICACIÓN'],TIP=['C1','SIN TIPIFICACIÓN'];
-const DCOLS=['id','sucursal','responsable','producto','f_recepcion','f_faena','temp','clasif','tipif','peso_remito','peso_real','created_at','foto_url','historial'];
+const DCOLS=['id','sucursal','responsable','producto','proveedor','f_recepcion','f_faena','temp','clasif','tipif','peso_remito','peso_real','created_at','foto_url','historial'];
 const fullRow=r=>{const o={};DCOLS.forEach(k=>o[k]=r[k]===undefined?(k==='historial'?[]:null):r[k]);return o};
 const uid=()=>crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const v=Math.random()*16|0;return(c=='x'?v:v&3|8).toString(16)});
 const hist=r=>Array.isArray(r.historial)?r.historial:[];
 const fdt=t=>{const d=new Date(t);return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})};
-const CAMPOS=[['producto','Producto'],['f_recepcion','Fecha de recepción',fd],['f_faena','Fecha de faena',fd],['temp','Temperatura (°C)',n1],['clasif','Clasificación'],['tipif','Tipificación'],['peso_remito','Peso remito (Kg)',n1],['peso_real','Peso real (Kg)',n1]];
+const CAMPOS=[['producto','Producto'],['proveedor','Proveedor'],['f_recepcion','Fecha de recepción',fd],['f_faena','Fecha de faena',fd],['temp','Temperatura (°C)',n1],['clasif','Clasificación'],['tipif','Tipificación'],['peso_remito','Peso remito (Kg)',n1],['peso_real','Peso real (Kg)',n1]];
 const difs=(a,b)=>CAMPOS.filter(([k,,f])=>f===n1?+a[k]!==+b[k]:String(a[k]??'')!==String(b[k]??'')).map(([k,l,f])=>[l,f?f(a[k]):String(a[k]??'-'),f?f(b[k]):String(b[k]??'-')]);
 const qf=()=>LS('qf')||[];
-const FF=['prod','otro','fr','ff','t','cl','clo','ti','tio','pr','pe'];
+// --- Cambios que deben reflejarse en Drive (fotos borradas/reemplazadas y reportes ya generados) ---
+const qdv=()=>LS('qdv')||[];
+const cerrado=f=>{if(!f)return false;const d=new Date(f+'T12:00'),dom=new Date(d);dom.setDate(d.getDate()+(7-d.getDay())%7);const fm=new Date(d.getFullYear(),d.getMonth()+1,0);return dom.toLocaleDateString('en-CA')<today()||fm.toLocaleDateString('en-CA')<today()};
+const encReg=(suc,...fs)=>{const f=[...new Set(fs.filter(cerrado))];if(suc&&f.length)LS('qdv',[...qdv(),{a:'reg',suc,f}])};
+const encFoto=url=>{if(url)LS('qdv',[...qdv(),{a:'foto',url}])};
+async function upDrive(){if(drvB)return;const l=qdv();if(!l.length)return;if(['q','qd','qe','qde','qa','qda'].some(k=>(LS(k)||[]).length))return;if(!(CONFIG.DRIVE_URL||'').trim())throw new Error('falta configurar DRIVE_URL en config.js');drvB=true;
+ try{const fotos=l.filter(x=>x.a==='foto'),regs={};l.filter(x=>x.a==='reg').forEach(x=>{regs[x.suc]=[...new Set([...(regs[x.suc]||[]),...x.f])]});
+  const post=async o=>{const r=await fetch(CONFIG.DRIVE_URL.trim(),{method:'POST',body:JSON.stringify(o)});const tx=await r.text();let j;try{j=JSON.parse(tx)}catch(e){throw new Error('Drive no responde bien')}if(!j.ok)throw new Error(j.error||'error');return j};
+  for(const x of fotos){await post({accion:'borrarFoto',url:x.url});LS('qdv',qdv().filter(y=>!(y.a==='foto'&&y.url===x.url)))}
+  for(const suc in regs){await post({accion:'regenerar',sucursal:suc,fechas:regs[suc]});LS('qdv',qdv().filter(y=>!(y.a==='reg'&&y.suc===suc)))}
+ }finally{drvB=false}}
+const SCOL={'Independencia':'#2a62b8','Paunero':'#7a3fb0','Arenales':'#b85d0c','San Martín':'#0f7f73'};
+const stag=r=>`<span class="stg" style="--c:${SCOL[r.sucursal]||'#4b5a50'}">${esc(r.sucursal)}</span>`;
+const ordS=l=>ord?[...l].sort((a,b)=>String(a.sucursal).localeCompare(String(b.sucursal),'es')):l;
+const thS=()=>`<th><button type="button" class="thb" data-ord title="Ordenar por sucursal">Sucursal ${ord?'▲':'⇅'}</button></th>`;
+const bindOrd=()=>document.querySelectorAll('[data-ord]').forEach(b=>b.onclick=()=>{ord=!ord;render();const t=$('#reg')||$('#rege');t&&t.scrollIntoView({block:'start'})});
+const FF=['prod','otro','prv','fr','ff','t','cl','clo','ti','tio','pr','pe'];
 const getDr=()=>user?LS('dr_'+user.n):null,clrDr=()=>{if(user){LS('dr_'+user.n,null);IDB.del('df_'+user.n)}foto=null};
 const saveDr=()=>{if(!user||!$('#f'))return;const f={};FF.forEach(k=>{const e=$('#'+k);if(e)f[k]=e.value});LS('dr_'+user.n,{id:editId||'',f})};
 const pname=t=>{t=String(t||'').trim().replace(/\s+/g,' ');const k=norm(t),f=PROD.find(x=>norm(x)===k);return f||(t?t[0].toUpperCase()+t.slice(1).toLowerCase():t)};
 let msgT=0;const gm=()=>msg&&Date.now()-msgT<6000?msg:'';
 const FOTO_DESDE=(CONFIG.FOTO_DESDE||'').trim(),fotoReq=f=>!!FOTO_DESDE&&!!f&&f>=FOTO_DESDE;
-let sec=SSt.getItem('sec')||'c',editE=null,kfe='',lastFullE=0,errE='';
-let vw=LS('vw')||(innerWidth<760?'m':'d'),user=JSON.parse(SSt.getItem('u')||'null'),resp=SSt.getItem('r')||'',err='',editId=null,msg='',lastSync='',syncErr=false,syncMsg='',sf={from:'',to:''},flt={from:'',to:'',suc:'',grp:'mes'},kf='',foto=null,fotoErr='',upB=false;
+let ord=false,editA=null,kfa='',fpa='',lastFullA=0,errA='',sec=SSt.getItem('sec')||'c',editE=null,kfe='',lastFullE=0,errE='';
+let vw=LS('vw')||(innerWidth<760?'m':'d'),user=JSON.parse(SSt.getItem('u')||'null'),resp=SSt.getItem('r')||'',err='',editId=null,msg='',lastSync='',syncErr=false,syncMsg='',sf={from:'',to:''},flt={from:'',to:'',suc:'',grp:'mes'},kf='',foto=null,fotoErr='',upB=false,drvB=false,drvErr='';
 
 function calc(r){const d=r.f_faena?Math.round((new Date(r.f_recepcion)-new Date(r.f_faena))/864e5):null;
  const t=+r.temp,dif=r.peso_remito>0?(r.peso_real-r.peso_remito)/r.peso_remito*100:0;
@@ -106,31 +125,33 @@ function all(){const m=new Map();[...gc(),...(LS('q')||[])].forEach(r=>m.set(r.i
 const gc=()=>CACHE[ck()]||[],sc=v=>{CACHE[ck()]=v;IDB.set(ck(),v)};
 const mergeRows=(a,b)=>{const m=new Map(a.map(r=>[r.id,r]));b.forEach(r=>m.set(r.id,r));return[...m.values()]};
 async function pull(f,full,t='recepciones'){let out=[],o=0;for(;;){const g=await fetch(B+'/'+t+'?select=*&order=created_at.desc,id.asc&limit=1000&offset='+o+f,{headers:HD});if(!g.ok)throw new Error('Leer: '+g.status+' '+(await g.text()).slice(0,140));const a=await g.json();out=out.concat(a);if(!full||a.length<1000||out.length>=200000)break;o+=1000}return out}
-const busy=()=>user&&(user.role==='suc'||editId||editE)&&(!!foto||!!getDr()||!!getDrE()||['t','pr','pe','ff','otro','clo','tio','epv','eq','ekg','eob'].some(i=>{const e=document.getElementById(i);return e&&e.value}));
+const busy=()=>user&&(user.role==='suc'||editId||editE||editA)&&(!!foto||!!getDr()||!!getDrE()||!!getDrA()||['t','pr','pe','ff','otro','clo','tio','prv','epv','eq','ekg','eob'].some(i=>{const e=document.getElementById(i);return e&&e.value}));
 async function upFotos(){if(upB)return;const l=qf();if(!l.length)return;if(!(CONFIG.DRIVE_URL||'').trim())throw new Error('falta configurar DRIVE_URL en config.js');upB=true;
  try{for(const f of l){const img=await IDB.get('f_'+f.fid);
   if(img){const r=await fetch(CONFIG.DRIVE_URL.trim(),{method:'POST',body:JSON.stringify({sucursal:f.suc,fecha:f.fecha,id:f.id,fid:f.fid,img:img.split(',')[1]})});
    const tx=await r.text();let j;try{j=JSON.parse(tx)}catch(e){throw new Error('Drive no responde bien (revisá que el acceso sea "Cualquier persona")')}
    if(!j.ok)throw new Error('Drive: '+j.error);
    const q=LS('q')||[],rec=q.find(x=>x.id===f.id)||gc().find(x=>x.id===f.id);
-   if(rec)LS('q',[...q.filter(x=>x.id!==f.id),{...rec,foto_url:j.url}])}
+   if(rec){if(rec.foto_url&&rec.foto_url!==j.url)encFoto(rec.foto_url);LS('q',[...q.filter(x=>x.id!==f.id),{...rec,foto_url:j.url}])}}
   LS('qf',qf().filter(x=>x.fid!==f.fid));IDB.del('f_'+f.fid)}}finally{upB=false}}
 async function sync(force){if(force)render();if(!CONFIG.SUPABASE_URL||!navigator.onLine||!user){if(force||!busy())render();return}
  try{await upFotos();fotoErr=''}catch(e){fotoErr=(e&&e.message)||'sin respuesta'}
  try{const dd=LS('qd')||[];if(dd.length){const r=await fetch(B+'/recepciones?id=in.('+dd.join(',')+')',{method:'DELETE',headers:HD});if(!r.ok)throw new Error('Anular: '+r.status+' '+(await r.text()).slice(0,140));LS('qd',[]);sc(gc().filter(x=>!dd.includes(x.id)))}
   const q=LS('q')||[];
-  if(q.length){const r=await fetch(B+'/recepciones?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q.map(fullRow))});if(!r.ok)throw new Error('Guardar: '+r.status+' '+(await r.text()).slice(0,140));LS('q',[])}
+  if(q.length){const r=await fetch(B+'/recepciones?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q.map(fullRow))});if(!r.ok){const tx=await r.text();throw new Error(/proveedor/.test(tx)?'falta agregar la columna "proveedor" en Supabase':'Guardar: '+r.status+' '+tx.slice(0,140))}LS('q',[])}
   const f=user.role==='suc'?'&sucursal=eq.'+encodeURIComponent(user.n):'';
   const full=Date.now()-lastFull>6e5||!gc().length,rows=await pull(f,full);sc(full?rows:mergeRows(gc(),rows));if(full)lastFull=Date.now();syncErr=false;syncMsg='';lastSync=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}catch(e){syncErr=true;syncMsg=(e&&e.message)||'sin respuesta'}
  try{await syncE();errE=''}catch(e){const m=(e&&e.message)||'sin respuesta';errE=/PGRST205|42P01|does not exist|Could not find/.test(m)?'falta crear la tabla "envasados" en Supabase':m}
+ try{await syncA();errA=''}catch(e){const m=(e&&e.message)||'sin respuesta';errA=/PGRST205|42P01|does not exist|Could not find/.test(m)?'falta crear la tabla "achuras" en Supabase':m}
+ try{await upDrive();drvErr=''}catch(e){drvErr=(e&&e.message)||'sin respuesta'}
  if(force||!busy())render()}
 addEventListener('online',()=>sync());addEventListener('offline',()=>{if(user&&!busy())render()});document.addEventListener('visibilitychange',()=>!document.hidden&&user&&sync());setInterval(()=>user&&sync(),30000);
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 
-function head(sub){const pend=(LS('q')||[]).length+(LS('qe')||[]).length,pf=qf().length;
+function head(sub){const pend=(LS('q')||[]).length+(LS('qe')||[]).length+(LS('qa')||[]).length,pf=qf().length;
  return `<header><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj48cmVjdCB4PSI2IiB5PSI2IiB3aWR0aD0iMTA4IiBoZWlnaHQ9IjEwOCIgcng9IjI4IiBmaWxsPSIjZmZmIiBzdHJva2U9IiMxNDMwMWYiIHN0cm9rZS13aWR0aD0iOCIvPjx0ZXh0IHg9IjYwIiB5PSI1NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIEJsYWNrLEFyaWFsIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjI0IiBmaWxsPSIjMTQzMDFmIj5DQU1QTzwvdGV4dD48dGV4dCB4PSI2MCIgeT0iODQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCBCbGFjayxBcmlhbCIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzE0MzAxZiI+VkVSREU8L3RleHQ+PC9zdmc+Cg==" alt="Campo Verde"><div><small>CAMPO VERDE</small><h1>Control de Recepción de Carnicería</h1><div style="opacity:.85;font-size:14px;margin-top:4px">${sub}</div></div><span class="sp"></span>
- <button class="vt">${vl()}</button>${user?`${!navigator.onLine?'<span class="off">Sin conexión</span>':''}${pend?`<span class="off">${pend} pendiente(s) de sincronizar</span>`:''}${pf?`<span class="off">📷 ${pf} foto(s) pendiente(s) de subir${fotoErr&&navigator.onLine?' · '+esc(fotoErr):''}</span>`:''}${CONFIG.SUPABASE_URL?(syncErr&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ No se pudo sincronizar: '+esc(syncMsg)+'</span>':(errE&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Envasados: '+esc(errE)+'</span>':'')+(!pend&&!pf&&lastSync?`<span class="pill">☁ Guardado en la nube ${lastSync}</span>`:'')):'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Modo local: datos solo en este dispositivo</span>'}<span class="pill">CAR-0003 · Rev 2.0</span><button class="btn o s" id="out">Salir</button>`:''}</header>`}
+ <button class="vt">${vl()}</button>${user?`${!navigator.onLine?'<span class="off">Sin conexión</span>':''}${pend?`<span class="off">${pend} pendiente(s) de sincronizar</span>`:''}${qdv().length?`<span class="off">🗂 ${qdv().length} cambio(s) pendiente(s) en Drive${drvErr&&navigator.onLine?' · '+esc(drvErr):''}</span>`:''}${pf?`<span class="off">📷 ${pf} foto(s) pendiente(s) de subir${fotoErr&&navigator.onLine?' · '+esc(fotoErr):''}</span>`:''}${CONFIG.SUPABASE_URL?(syncErr&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ No se pudo sincronizar: '+esc(syncMsg)+'</span>':(errE&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Envasados: '+esc(errE)+'</span>':'')+(errA&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Achuras: '+esc(errA)+'</span>':'')+(!pend&&!pf&&lastSync?`<span class="pill">☁ Guardado en la nube ${lastSync}</span>`:'')):'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Modo local: datos solo en este dispositivo</span>'}<span class="pill">CAR-0003 · Rev 2.0</span><button class="btn o s" id="out">Salir</button>`:''}</header>`}
 
 const bv=()=>document.querySelectorAll('.vt').forEach(b=>b.onclick=()=>{vw=vw==='m'?'d':'m';LS('vw',vw);render()});
 const vl=()=>vw==='m'?'🖥 Ver en computadora':'📱 Ver en celular';
@@ -141,10 +162,10 @@ function render(){const a=$('#app');document.body.classList.toggle('mob',vw==='m
   <div class="err">${err}</div><button class="btn big">Entrar</button></form><div class="ft">CAR-0003 · Rev 2.0</div><button type="button" class="vt">${vl()}</button></div></div>`;
   bv();$('#tg').onclick=()=>{const p=$('#lp');p.type=p.type==='password'?'text':'password'};
   $('#lf').onsubmit=e=>{e.preventDefault();const u=CONFIG.USERS[norm($('#lu').value)];
-   if(u&&u.p.toLowerCase()===$('#lp').value.trim().toLowerCase()){user=u;err='';SSt.setItem('u',JSON.stringify(u));IDB.get(ck()).then(async v=>{CACHE[ck()]=v||[];CACHE[ckE()]=(await IDB.get(ckE()))||[];lastFull=0;lastFullE=0;await restDr();sync(true)})}else{err='Usuario o contraseña incorrectos';render()}};return}
- a.innerHTML=user.role==='suc'?(sec==='e'?viewSucE():viewSuc()):(sec==='e'?viewCalE():viewCal());
- $('#out').onclick=()=>{['u','r'].forEach(k=>SSt.removeItem(k));user=null;resp='';foto=null;kf='';kfe='';editId=null;editE=null;msg='';render()};
- user.role==='suc'?(sec==='e'?bindSucE():bindSuc()):(sec==='e'?bindCalE():bindCal());bv();
+   if(u&&u.p.toLowerCase()===$('#lp').value.trim().toLowerCase()){user=u;err='';SSt.setItem('u',JSON.stringify(u));IDB.get(ck()).then(async v=>{CACHE[ck()]=v||[];CACHE[ckE()]=(await IDB.get(ckE()))||[];CACHE[ckA()]=(await IDB.get(ckA()))||[];lastFull=0;lastFullE=0;lastFullA=0;await restDr();sync(true)})}else{err='Usuario o contraseña incorrectos';render()}};return}
+ a.innerHTML=user.role==='suc'?(sec==='e'?viewSucE():sec==='a'?viewSucA():viewSuc()):(sec==='e'?viewCalE():sec==='a'?viewCalA():viewCal());
+ $('#out').onclick=()=>{['u','r'].forEach(k=>SSt.removeItem(k));user=null;resp='';foto=null;kf='';kfe='';kfa='';fpa='';editId=null;editE=null;editA=null;msg='';render()};
+ user.role==='suc'?(sec==='e'?bindSucE():sec==='a'?bindSucA():bindSuc()):(sec==='e'?bindCalE():sec==='a'?bindCalA():bindCal());bv();
  document.querySelectorAll('[data-sec]').forEach(b=>b.onclick=()=>{sec=b.dataset.sec;SSt.setItem('sec',sec);render();scrollTo(0,0)});}
 
 const tag=r=>`<span class="tag ${r.est}">${{ok:'Conforme',dev:'Desviación',nc:'No conforme'}[r.est]}</span>`;
@@ -152,8 +173,8 @@ const yn=b=>`<span class="tag ${b?'nc':'no'}">${b?'SI':'NO'}</span>`;
 const ab=r=>`<button type="button" class="btn o s" data-ed="${r.id}">✏️ Editar</button>${user&&user.role==='cal'?` <button type="button" class="btn o s dl" data-dl="${r.id}">🗑 Borrar</button>`:''}`;
 const fcell=r=>qf().some(x=>x.id===r.id)?'<span class="tag dev">⏳ Pendiente</span>':r.foto_url?`<a href="${esc(r.foto_url)}" target="_blank" rel="noopener">📷 Ver foto</a>`:'<span class="hint">Sin foto</span>';
 const hcell=r=>{const h=hist(r);return h.length?`<details><summary>✏️ ${h.length} modificación${h.length>1?'es':''}</summary><div class="hl">${h.map(m=>`<div><b>${fdt(m.t)} · ${esc(m.u)}</b><br>${(m.c||[]).map(c=>`${esc(c[0])}: ${esc(c[1])} → ${esc(c[2])}`).join('<br>')}</div>`).join('')}</div></details>`:'<span class="tag no">Original</span>'};
-function rows(l,suc,act){if(vw==='m')return l.length?l.map(r=>`<div class="rc"><div class="rt"><b>${esc(r.producto)}</b>${tag(r)}</div><div class="rg"><span>Recepción</span><b>${fd(r.f_recepcion)}</b><span>Faena</span><b>${fd(r.f_faena)}</b><span>Temperatura</span><b>${n1(r.temp)} °C</b><span>Clasif. / Tipif.</span><b>${esc(r.clasif)} · ${esc(r.tipif)}</b><span>Peso remito / real</span><b>${n1(r.peso_remito)} / ${n1(r.peso_real)} Kg</b><span>Dif. peso</span><b>${n1(r.dif)}% ${yn(r.dp)}</b><span>Días desde faena</span><b>${r.dias===null?'-':r.dias}${r.d4?' ⚠':''}</b>${suc?`<span>Sucursal</span><b>${esc(r.sucursal)}</b>`:''}<span>Responsable</span><b>${esc(r.responsable)}</b><span>Foto</span><b>${fcell(r)}</b><span>Modificaciones</span><b>${hcell(r)}</b></div>${act?`<div class="ac">${ab(r)}</div>`:''}</div>`).join(''):'<p class="hint">Sin registros</p>';return `<div class="tw"><table><tr><th>Producto</th><th>Recepción</th><th>Faena</th><th>Temp °C</th><th>Clasif.</th><th>Tipif.</th><th>Peso remito</th><th>Peso real</th><th>Dif %</th><th>Días</th><th>Desvío T</th><th>DP&gt;3%</th>${suc?'<th>Sucursal / Resp.</th>':'<th>Responsable</th>'}<th>Foto</th><th>Modificaciones</th>${act?'<th>Acciones</th>':''}</tr>
-${l.map(r=>`<tr><td>${esc(r.producto)}</td><td>${fd(r.f_recepcion)}</td><td>${fd(r.f_faena)}</td><td>${n1(r.temp)}</td><td>${esc(r.clasif)}</td><td>${esc(r.tipif)}</td><td>${n1(r.peso_remito)}</td><td>${n1(r.peso_real)}</td><td>${n1(r.dif)}%</td><td>${r.dias===null?'-':`<span class="tag ${r.d4?'nc':'no'}">${r.dias}</span>`}</td><td>${tag(r)}</td><td>${yn(r.dp)}</td><td>${suc?esc(r.sucursal)+' · ':''}${esc(r.responsable)}</td><td>${fcell(r)}</td><td>${hcell(r)}</td>${act?`<td>${ab(r)}</td>`:''}</tr>`).join('')||'<tr><td colspan="16">Sin registros</td></tr>'}</table></div>`}
+function rows(l,suc,act){if(suc)l=ordS(l);if(vw==='m')return l.length?l.map(r=>`<div class="rc">${suc?`<div style="margin-bottom:6px">${stag(r)}</div>`:''}<div class="rt"><b>${esc(r.producto)}</b>${tag(r)}</div><div class="rg"><span>Proveedor</span><b>${esc(r.proveedor||'-')}</b><span>Recepción</span><b>${fd(r.f_recepcion)}</b><span>Faena</span><b>${fd(r.f_faena)}</b><span>Temperatura</span><b>${n1(r.temp)} °C</b><span>Clasif. / Tipif.</span><b>${esc(r.clasif)} · ${esc(r.tipif)}</b><span>Peso remito / real</span><b>${n1(r.peso_remito)} / ${n1(r.peso_real)} Kg</b><span>Dif. peso</span><b>${n1(r.dif)}% ${yn(r.dp)}</b><span>Días desde faena</span><b>${r.dias===null?'-':r.dias}${r.d4?' ⚠':''}</b><span>Responsable</span><b>${esc(r.responsable)}</b><span>Foto</span><b>${fcell(r)}</b><span>Modificaciones</span><b>${hcell(r)}</b></div>${act?`<div class="ac">${ab(r)}</div>`:''}</div>`).join(''):'<p class="hint">Sin registros</p>';return `<div class="tw"><table><tr>${suc?thS():''}<th>Producto</th><th>Proveedor</th><th>Recepción</th><th>Faena</th><th>Temp °C</th><th>Clasif.</th><th>Tipif.</th><th>Peso remito</th><th>Peso real</th><th>Dif %</th><th>Días</th><th>Desvío T</th><th>DP&gt;3%</th><th>Responsable</th><th>Foto</th><th>Modificaciones</th>${act?'<th>Acciones</th>':''}</tr>
+${l.map(r=>`<tr>${suc?`<td>${stag(r)}</td>`:''}<td>${esc(r.producto)}</td><td>${esc(r.proveedor||'-')}</td><td>${fd(r.f_recepcion)}</td><td>${fd(r.f_faena)}</td><td>${n1(r.temp)}</td><td>${esc(r.clasif)}</td><td>${esc(r.tipif)}</td><td>${n1(r.peso_remito)}</td><td>${n1(r.peso_real)}</td><td>${n1(r.dif)}%</td><td>${r.dias===null?'-':`<span class="tag ${r.d4?'nc':'no'}">${r.dias}</span>`}</td><td>${tag(r)}</td><td>${yn(r.dp)}</td><td>${esc(r.responsable)}</td><td>${fcell(r)}</td><td>${hcell(r)}</td>${act?`<td>${ab(r)}</td>`:''}</tr>`).join('')||'<tr><td colspan="18">Sin registros</td></tr>'}</table></div>`}
 
 function formBlock(ed){const d=getDr(),D=d&&d.id===(ed?ed.id:'')?d.f:null,V=(k,def)=>D&&D[k]!=null?D[k]:def,
  pv=V('prod',ed?(PROD.includes(ed.producto)?ed.producto:'__o'):PROD[0]),oo=pv==='__o',otroV=V('otro',ed&&!PROD.includes(ed.producto)?ed.producto:''),
@@ -162,6 +183,7 @@ function formBlock(ed){const d=getDr(),D=d&&d.id===(ed?ed.id:'')?d.f:null,V=(k,d
  frV=V('fr',ed?ed.f_recepcion:today()),pfE=ed&&qf().some(x=>x.id===ed.id);if(d&&!D)LS('dr_'+user.n,null);
  return ` <div class="grid two"><form class="card" id="f"><h2>${ed?'Editar recepción'+(user.role==='cal'?' · '+esc(ed.sucursal):''):'Nueva recepción'}</h2>${user.role==='suc'&&gm()?`<div class="off" style="margin-bottom:12px">${gm()}</div>`:''}<div class="grid">
  <div><label>Producto *</label><select id="prod">${PROD.map(p=>`<option ${pv===p?'selected':''}>${p}</option>`).join('')}<option value="__o" ${oo?'selected':''}>Otro…</option></select><input id="otro" placeholder="Nombre del producto" value="${esc(otroV)}" style="display:${oo?'block':'none'};margin-top:6px"><div class="hint" id="oth" style="display:${oo?'block':'none'}">Mayúsculas, tildes y espacios no importan: "asado de tira" y "ASADO DE TIRA" se cuentan como el mismo producto.</div></div>
+ <div><label>Proveedor / frigorífico *</label><input id="prv" list="provsC" placeholder="Ej: Frigorífico X" value="${esc(V('prv',ed?ed.proveedor||'':''))}"><datalist id="provsC">${[...new Set(all().map(r=>r.proveedor).filter(Boolean))].sort().map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div>
  <div><label>Fecha de recepción *</label><input type="date" id="fr" value="${esc(frV)}" required></div>
  <div><label>Fecha de faena (opcional)</label><input type="date" id="ff" value="${esc(V('ff',ed&&ed.f_faena||''))}"><div class="hint">Dejar vacío si no figura en la etiqueta</div></div>
  <div><label>Temperatura (°C) *</label><input type="number" step="any" inputmode="decimal" id="t" placeholder="0,0" value="${esc(V('t',ed?ed.temp:''))}" required><div class="hint">Ideal menor a 7 °C</div></div>
@@ -198,14 +220,16 @@ function bindForm(){const p=$('#prod'),g=id=>$('#'+id).value;
  live();
  $('#f').onsubmit=async e=>{e.preventDefault();resp=$('#resp').value.trim();SSt.setItem('r',resp);const prod=p.value==='__o'?pname(g('otro')):p.value,cl=g('cl')==='__o'?g('clo').trim():g('cl'),ti=g('ti')==='__o'?g('tio').trim():g('ti');
   if(!resp||!prod){$('#fe').textContent=user.role==='cal'?'Completá tu nombre (quién modifica) y el producto':'Completá el responsable y el producto';return}
+  const prov=(x=>all().map(r=>r.proveedor).find(y=>y&&norm(y)===norm(x))||x)(clean(g('prv')));
+  if(!prov&&!(editId&&!(all().find(x=>x.id===editId)||{}).proveedor)){$('#fe').textContent='Completá el proveedor';return}
   if(!cl||!ti){$('#fe').textContent='Completá la clasificación y la tipificación (si elegiste "Otro…", escribila)';return}
   if(g('ff')&&g('ff')>g('fr')){$('#fe').textContent='La faena no puede ser posterior a la recepción';return}
   const prev=editId?all().find(x=>x.id===editId):null,pfP=prev&&qf().some(x=>x.id===prev.id);
   if(user.role==='suc'&&fotoReq(g('fr'))&&!foto&&!(prev&&(prev.foto_url||pfP))){$('#fe').textContent='Falta la foto de la mercadería (obligatoria desde el '+fd(FOTO_DESDE)+')';return}
-  const id=editId||uid(),r={id,sucursal:prev?prev.sucursal:user.n,responsable:prev?prev.responsable:resp,producto:prod,f_recepcion:g('fr'),f_faena:g('ff')||null,temp:+g('t'),clasif:cl,tipif:ti,peso_remito:+g('pr'),peso_real:+g('pe'),created_at:(prev&&prev.created_at)||new Date().toISOString(),foto_url:prev?prev.foto_url||null:null,historial:prev?hist(prev):[]};
+  const id=editId||uid(),r={id,sucursal:prev?prev.sucursal:user.n,responsable:prev?prev.responsable:resp,producto:prod,proveedor:prov||null,f_recepcion:g('fr'),f_faena:g('ff')||null,temp:+g('t'),clasif:cl,tipif:ti,peso_remito:+g('pr'),peso_real:+g('pe'),created_at:(prev&&prev.created_at)||new Date().toISOString(),foto_url:prev?prev.foto_url||null:null,historial:prev?hist(prev):[]};
   if(prev){const ch=difs(prev,r);if(foto)ch.push(['Foto',prev.foto_url||pfP?'anterior':'sin foto','reemplazada']);if(!ch.length){msg='No hubo cambios para guardar';msgT=Date.now();editId=null;clrDr();render();return}r.historial=[...hist(prev),{u:user.role==='cal'?resp+' (Calidad)':resp,t:new Date().toISOString(),c:ch}]}
   if(foto){const fid=uid();await IDB.set('f_'+fid,foto);qf().filter(x=>x.id===id).forEach(x=>IDB.del('f_'+x.fid));LS('qf',[...qf().filter(x=>x.id!==id),{id,fid,suc:r.sucursal,fecha:r.f_recepcion}]);foto=null}
-  LS('q',[...(LS('q')||[]).filter(x=>x.id!==r.id),r]);msg=editId?'Cambios guardados':'Registro guardado';msgT=Date.now();editId=null;clrDr();sync(true)}}
+  encReg(r.sucursal,r.f_recepcion,prev&&prev.f_recepcion);LS('q',[...(LS('q')||[]).filter(x=>x.id!==r.id),r]);msg=editId?'Cambios guardados':'Registro guardado';msgT=Date.now();editId=null;clrDr();sync(true)}}
 function comprimir(file){return new Promise((ok,ko)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const M=1600,k=Math.min(1,M/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);ok(c.toDataURL('image/jpeg',.72))};im.onerror=()=>{URL.revokeObjectURL(u);ko(new Error('No se pudo leer la imagen. Probá de nuevo.'))};im.src=u})}
 
 // ---------- Calidad ----------
@@ -225,7 +249,7 @@ function donut(c){const t=c.ok+c.dev+c.nc||1,R=80,C=2*Math.PI*R;let o=0;
 const dk=d=>`<td style="font-weight:700;color:${d<-0.05?'#a1241f':d>0.05?'#1d6b3a':'inherit'}">${d>0.05?'+':''}${n1(d)}</td>`;
 function ptab(s){const e=Object.entries(s.prod),t=e.reduce((a,[,o])=>({n:a.n+o.n,rem:a.rem+o.rem,real:a.real+o.real}),{n:0,rem:0,real:0});
  return `<div class="tw"><table><tr><th>Producto</th><th>Cant.</th><th>Kg remito</th><th>Kg real</th><th>Dif. kg</th><th title="Cantidad promedio de recepciones por semana">Cant. prom.</th></tr>${e.map(([k,o])=>`<tr><td>${esc(k)}</td><td>${o.n}</td><td>${n1(o.rem)}</td><td>${n1(o.real)}</td>${dk(o.real-o.rem)}<td>${n1(o.n/s.span)}</td></tr>`).join('')||'<tr><td colspan="6">Sin datos</td></tr>'}${e.length?`<tr style="font-weight:700;background:#f1f6f2"><td>Total</td><td>${t.n}</td><td>${n1(t.rem)}</td><td>${n1(t.real)}</td>${dk(t.real-t.rem)}<td>${n1(t.n/s.span)}</td></tr>`:''}</table></div>`}
-function sto(){const n=all().length+allE().length,mb=n*0.4/1024,p=mb/500*100;return `<div class="card"><h2>Espacio de almacenamiento</h2><div style="background:#e8efe9;border-radius:99px;height:12px;overflow:hidden"><div style="width:${Math.min(100,Math.max(p,0.5))}%;height:100%;background:${p>=80?'var(--nc)':p>=60?'var(--dv)':'var(--ok)'}"></div></div><div class="hint" style="margin-top:8px">${n.toLocaleString('es-AR')} registros guardados · uso estimado ${mb<10?mb.toFixed(2):Math.round(mb)} MB de 500 MB (${p<1?'menos del 1':Math.round(p)}%) del plan gratuito. ${p>=80?'⚠ Descargá el Excel de cada sucursal y archivá los registros antiguos.':'Hay espacio de sobra: no hace falta borrar registros.'}</div></div>`}
+function sto(){const n=all().length+allE().length+allA().length,mb=n*0.4/1024,p=mb/500*100;return `<div class="card"><h2>Espacio de almacenamiento</h2><div style="background:#e8efe9;border-radius:99px;height:12px;overflow:hidden"><div style="width:${Math.min(100,Math.max(p,0.5))}%;height:100%;background:${p>=80?'var(--nc)':p>=60?'var(--dv)':'var(--ok)'}"></div></div><div class="hint" style="margin-top:8px">${n.toLocaleString('es-AR')} registros guardados · uso estimado ${mb<10?mb.toFixed(2):Math.round(mb)} MB de 500 MB (${p<1?'menos del 1':Math.round(p)}%) del plan gratuito. ${p>=80?'⚠ Descargá el Excel de cada sucursal y archivá los registros antiguos.':'Hay espacio de sobra: no hace falta borrar registros.'}</div></div>`}
 const KF={ok:['T conforme (≤ 7 °C)','ok',r=>r.est==='ok'],dev:['T en desviación (7 a 10 °C)','dev',r=>r.est==='dev'],nc:['T no conforme (> 10 °C)','nc',r=>r.est==='nc'],dp:['Desvío de peso > 3 %','nc',r=>r.dp],d4:['Más de 4 días desde faena','nc',r=>r.d4]};
 function viewCal(){const l=filt(),s=stats(l),f1=v=>n1(v)+'%',N=l.length,pc=v=>n1(v/(N||1)*100)+'%',lt=kf&&KF[kf]?l.filter(KF[kf][2]):l,sn=flt.suc?'Sucursal '+esc(flt.suc):'Todas las sucursales';
  const K=(k,c,lab,val,s1,s2)=>`<div class="card kpi ${c} ${kf&&kf===k?'act':''}" data-kf="${k}" role="button" tabindex="0" title="${k?'Tocá para ver solo estos registros en la tabla de abajo':'Tocá para ver todos los registros'}"><div class="kl">${lab}</div><b>${val}</b><span>${s1}</span><span>${s2}</span></div>`;
@@ -246,36 +270,36 @@ function viewCal(){const l=filt(),s=stats(l),f1=v=>n1(v)+'%',N=l.length,pc=v=>n1
 
 const fcard=h=>`<div class="card"><div class="row"><div><label>Fecha de inicio</label><input type="date" id="fi" value="${flt.from}"></div><div><label>Fecha de fin</label><input type="date" id="fe" value="${flt.to}"></div>
  <div><label>Sucursal</label><select id="fs"><option value="">Todas</option>${['Independencia','Paunero','Arenales','San Martín'].map(x=>`<option ${flt.suc===x?'selected':''}>${x}</option>`).join('')}</select></div>
- <div style="flex:none"><button class="btn o s" id="pw">Esta semana</button> <button class="btn o s" id="pm">Este mes</button> <button class="btn o s" id="pp">Mes anterior</button> <button class="btn o s" id="pc">Todo</button></div>
+ <div style="flex:none;display:flex;flex-wrap:wrap;gap:4px;max-width:100%"><button class="btn o s" id="pw">Esta semana</button> <button class="btn o s" id="pm">Este mes</button> <button class="btn o s" id="pp">Mes anterior</button> <button class="btn o s" id="pc">Todo</button></div>
  <div style="flex:none"><button class="btn" id="xl">⬇ Descargar Excel</button></div></div><div class="hint">${h}</div></div>`;
 const esHoy=r=>r.f_recepcion===today()||(r.created_at&&new Date(r.created_at).toLocaleDateString('en-CA')===today());
-const tabs=()=>`<div class="card" style="padding:12px 16px"><div class="tabs"><button type="button" class="tab ${sec==='c'?'on':''}" data-sec="c">🥩 Carnicería</button><button type="button" class="tab ${sec==='e'?'on':''}" data-sec="e">📦 Envasados al vacío</button></div></div>`;
+const tabs=()=>`<div class="card" style="padding:12px 16px"><div class="tabs"><button type="button" class="tab ${sec==='c'?'on':''}" data-sec="c">🥩 Carnicería</button><button type="button" class="tab ${sec==='e'?'on':''}" data-sec="e">📦 Envasados al vacío</button><button type="button" class="tab ${sec==='a'?'on':''}" data-sec="a">🫀 Achuras</button></div></div>`;
 function bindFilt(){const set=(a,b)=>{flt.from=a;flt.to=b;render()};
  $('#fi').onchange=e=>set(e.target.value,flt.to);$('#fe').onchange=e=>set(flt.from,e.target.value);
  $('#fs').onchange=e=>{flt.suc=e.target.value;render()};
  $('#pw').onclick=()=>set(wk(today()),today());$('#pm').onclick=()=>set(today().slice(0,8)+'01',today());$('#pp').onclick=()=>{const d=new Date(),a=new Date(d.getFullYear(),d.getMonth()-1,1),b=new Date(d.getFullYear(),d.getMonth(),0);set(a.toLocaleDateString('en-CA'),b.toLocaleDateString('en-CA'))};$('#pc').onclick=()=>set('','');
  $('#xl').onclick=()=>excel(filt(),flt.suc,flt.from,flt.to)}
-function bindCal(){bindFilt();
+function bindCal(){bindFilt();bindOrd();
 
  bindEd();if(editId)bindForm();
  document.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>{const id=b.dataset.dl,r=all().find(x=>x.id===id);if(!r)return;
-  if(!confirm(`¿Borrar definitivamente este registro?\n\n${r.sucursal} · ${r.producto} · ${fd(r.f_recepcion)} · ${n1(r.temp)} °C · resp. ${r.responsable}\n\nNo se puede deshacer.`))return;
-  LS('q',(LS('q')||[]).filter(x=>x.id!==id));qf().filter(x=>x.id===id).forEach(x=>IDB.del('f_'+x.fid));LS('qf',qf().filter(x=>x.id!==id));sc(gc().filter(x=>x.id!==id));LS('qd',[...(LS('qd')||[]),id]);if(editId===id)editId=null;msg='Registro borrado';msgT=Date.now();sync(true)});
+  if(!confirm(`¿Borrar definitivamente este registro?\n\n${r.sucursal} · ${r.producto} · ${fd(r.f_recepcion)} · ${n1(r.temp)} °C · resp. ${r.responsable}${r.foto_url?'\nLa foto también se borra del Drive (queda 30 días en la papelera de Drive).':''}\n\nNo se puede deshacer.`))return;
+  encFoto(r.foto_url);encReg(r.sucursal,r.f_recepcion);LS('q',(LS('q')||[]).filter(x=>x.id!==id));qf().filter(x=>x.id===id).forEach(x=>IDB.del('f_'+x.fid));LS('qf',qf().filter(x=>x.id!==id));sc(gc().filter(x=>x.id!==id));LS('qd',[...(LS('qd')||[]),id]);if(editId===id)editId=null;msg='Registro borrado';msgT=Date.now();sync(true)});
  document.querySelectorAll('[data-kf]').forEach(c=>c.onclick=c.onkeydown=e=>{if(e.type==='keydown'&&e.key!=='Enter')return;const k=c.dataset.kf;kf=kf===k?'':k;render();const t=$('#reg');if(kf&&t)t.scrollIntoView({behavior:'smooth',block:'start'})});
  if($('#kx'))$('#kx').onclick=()=>{kf='';render()}}
 
 function excel(l,suc,from,to){if(typeof XLSX==='undefined'){alert('Para descargar el Excel hace falta conexión la primera vez (se guarda para usarlo después sin señal).');return}const s=stats(l),mes=from?fd(from)+' al '+fd(to||today()):'Todos los períodos';
- const H=['Producto','Fecha de recepción','Fecha de elaboración','Temperatura (°C) ideal ≤ 7°C','Clasificación','Tipificación (L/N°)','Peso (Kg)','Peso real (Kg)','Dif. peso (%)','Días faena','Desvío T','DP > 3%','Sucursal','Responsable','Foto (link)','Modificaciones'];
+ const H=['Producto','Fecha de recepción','Fecha de elaboración','Temperatura (°C) ideal ≤ 7°C','Clasificación','Tipificación (L/N°)','Peso (Kg)','Peso real (Kg)','Dif. peso (%)','Días faena','Desvío T','DP > 3%','Sucursal','Responsable','Foto (link)','Modificaciones','Proveedor'];
  const E=(n)=>Array(n).fill('');const top=[['CAMPO VERDE',...E(8),'CONTROL DE RECEPCIÓN DE CARNICERÍA',...E(3),'CAR – 0003',''],[...E(14)],[...E(14)]];
  top[0]=['CAMPO VERDE','','','CONTROL DE RECEPCIÓN DE CARNICERÍA',...E(8),'CAR – 0003',''];top[1][12]='Rev: 2.0';top[2][12]='MES: '+mes;
  const ws=XLSX.utils.aoa_to_sheet([...top,['Sucursal','',suc||'Todas','','','Responsable','','Varios',...E(6)],H,
-  ...l.map(r=>[r.producto,fd(r.f_recepcion),fd(r.f_faena),+r.temp,r.clasif,r.tipif,+r.peso_remito,+r.peso_real,+r.dif.toFixed(2),r.dias??'',{ok:'Conforme',dev:'Desviación',nc:'No conforme'}[r.est],r.dp?'SI':'NO',r.sucursal,r.responsable,r.foto_url||'',hist(r).map(m=>fdt(m.t)+' '+m.u+': '+(m.c||[]).map(c=>c[0]+' '+c[1]+' → '+c[2]).join('; ')).join(' | ')])]);
+  ...l.map(r=>[r.producto,fd(r.f_recepcion),fd(r.f_faena),+r.temp,r.clasif,r.tipif,+r.peso_remito,+r.peso_real,+r.dif.toFixed(2),r.dias??'',{ok:'Conforme',dev:'Desviación',nc:'No conforme'}[r.est],r.dp?'SI':'NO',r.sucursal,r.responsable,r.foto_url||'',hist(r).map(m=>fdt(m.t)+' '+m.u+': '+(m.c||[]).map(c=>c[0]+' '+c[1]+' → '+c[2]).join('; ')).join(' | '),r.proveedor||''])]);
  ws['!merges']=[{s:{r:0,c:0},e:{r:2,c:2}},{s:{r:0,c:3},e:{r:2,c:11}},{s:{r:0,c:12},e:{r:0,c:13}},{s:{r:1,c:12},e:{r:1,c:13}},{s:{r:2,c:12},e:{r:2,c:13}},{s:{r:3,c:0},e:{r:3,c:1}},{s:{r:3,c:2},e:{r:3,c:4}},{s:{r:3,c:5},e:{r:3,c:6}},{s:{r:3,c:7},e:{r:3,c:13}}];
- ws['!cols']=[16,16,18,18,20,20,12,14,12,10,14,10,16,20,40,60].map(w=>({wch:w}));
+ ws['!cols']=[16,16,18,18,20,20,12,14,12,10,14,10,16,20,40,60,22].map(w=>({wch:w}));
  const f1=v=>+v.toFixed(1),R=[['RESUMEN · '+mes],['Sucursal',suc||'Todas'],[],['Indicador','Valor','Meta'],['Temperatura promedio (°C)',f1(s.avg),'≤ 7'],['% de entregas con T conforme (≤ 7 °C)',f1(s.p('ok')),'≥ 60'],['% de entregas con T en desviación (7 a 10 °C)',f1(s.p('dev')),'≤ 35'],['% de entregas con T no conforme (> 10 °C)',f1(s.p('nc')),'≤ 5'],['% de entregas con desvío de peso > 3%',f1(s.dp/(l.length||1)*100),'0'],['% de entregas con más de 4 días desde faena',f1(s.d4/(l.length||1)*100),'0'],['Total de recepciones',l.length,''],[],
   ['Producto','Cantidad','Kg remito','Kg real','Dif. kg'],...Object.entries(s.prod).map(([k,o])=>[k,o.n,f1(o.rem),f1(o.real),f1(o.real-o.rem)]),[],['Período ('+(flt.grp==='sem'?'semanal':'mensual')+')','Producto','Cantidad','Kg remito','Kg real'],...s.per.map(o=>[o.k,o.prod,o.n,f1(o.rem),f1(o.real)])];
  const w2=XLSX.utils.aoa_to_sheet(R);w2['!cols']=[46,16,14,14,14].map(w=>({wch:w}));
- const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Registros');XLSX.utils.book_append_sheet(wb,w2,'Resumen');excelE(wb,filtE(),suc,mes);
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Registros');XLSX.utils.book_append_sheet(wb,w2,'Resumen');excelE(wb,filtE(),suc,mes);excelA(wb,suc,mes);
  XLSX.writeFile(wb,`CAR-0003_${(suc||'Todas').replace(/\s/g,'')}_${today()}.xlsx`)}
 // ---------- Envasados al vacío ----------
 const PRODE=['Colita de cuadril','Entraña','Bife de chorizo','Vacío'];
@@ -301,9 +325,9 @@ async function syncE(){const dd=LS('qde')||[];
  const full=Date.now()-lastFullE>6e5||!gcE().length,rows=await pull(f,full,'envasados');scE(full?rows:mergeRows(gcE(),rows));if(full)lastFullE=Date.now()}
 const tagV=r=>r.dv===null?'-':`<span class="tag ${r.v15?'nc':'ok'}">${r.dv}${r.v15?' ⚠':''}</span>`;
 const abE=r=>`<button type="button" class="btn o s" data-ede="${r.id}">✏️ Editar</button> <button type="button" class="btn o s dl" data-dle="${r.id}">🗑 Borrar</button>`;
-function rowsE(l,suc,act){if(vw==='m')return l.length?l.map(r=>`<div class="rc ${r.v15?'bad':''}"><div class="rt"><b>${esc(r.producto)}</b>${tagV(r)}</div><div class="rg"><span>Proveedor</span><b>${esc(r.proveedor)}</b><span>Recepción</span><b>${fd(r.f_recepcion)}</b><span>Vencimiento</span><b>${fd(r.f_vencimiento)}</b><span>Días a venc.</span><b>${r.dv??'-'}${r.v15?' ⚠ menos de 15':''}</b><span>Cantidad</span><b>${n1(r.cantidad)} u</b><span>Peso</span><b>${n1(r.peso)} Kg</b>${r.observaciones?`<span>Observaciones</span><b>${esc(r.observaciones)}</b>`:''}${suc?`<span>Sucursal</span><b>${esc(r.sucursal)}</b>`:''}<span>Responsable</span><b>${esc(r.responsable)}</b><span>Modificaciones</span><b>${hcell(r)}</b></div>${act?`<div class="ac">${abE(r)}</div>`:''}</div>`).join(''):'<p class="hint">Sin registros</p>';
- return `<div class="tw"><table><tr><th>Producto</th><th>Proveedor</th><th>Recepción</th><th>Vencimiento</th><th>Días a venc.</th><th>Cantidad</th><th>Peso (Kg)</th><th>Observaciones</th>${suc?'<th>Sucursal / Resp.</th>':'<th>Responsable</th>'}<th>Modificaciones</th>${act?'<th>Acciones</th>':''}</tr>
-${l.map(r=>`<tr class="${r.v15?'bad':''}"><td>${esc(r.producto)}</td><td>${esc(r.proveedor)}</td><td>${fd(r.f_recepcion)}</td><td>${fd(r.f_vencimiento)}</td><td>${tagV(r)}</td><td>${n1(r.cantidad)}</td><td>${n1(r.peso)}</td><td style="white-space:normal;min-width:140px">${esc(r.observaciones||'')}</td><td>${suc?esc(r.sucursal)+' · ':''}${esc(r.responsable)}</td><td>${hcell(r)}</td>${act?`<td>${abE(r)}</td>`:''}</tr>`).join('')||'<tr><td colspan="12">Sin registros</td></tr>'}</table></div>`}
+function rowsE(l,suc,act){if(suc)l=ordS(l);if(vw==='m')return l.length?l.map(r=>`<div class="rc ${r.v15?'bad':''}">${suc?`<div style="margin-bottom:6px">${stag(r)}</div>`:''}<div class="rt"><b>${esc(r.producto)}</b>${tagV(r)}</div><div class="rg"><span>Proveedor</span><b>${esc(r.proveedor)}</b><span>Recepción</span><b>${fd(r.f_recepcion)}</b><span>Vencimiento</span><b>${fd(r.f_vencimiento)}</b><span>Días a venc.</span><b>${r.dv??'-'}${r.v15?' ⚠ menos de 15':''}</b><span>Cantidad</span><b>${n1(r.cantidad)} u</b><span>Peso</span><b>${n1(r.peso)} Kg</b>${r.observaciones?`<span>Observaciones</span><b>${esc(r.observaciones)}</b>`:''}<span>Responsable</span><b>${esc(r.responsable)}</b><span>Modificaciones</span><b>${hcell(r)}</b></div>${act?`<div class="ac">${abE(r)}</div>`:''}</div>`).join(''):'<p class="hint">Sin registros</p>';
+ return `<div class="tw"><table><tr>${suc?thS():''}<th>Producto</th><th>Proveedor</th><th>Recepción</th><th>Vencimiento</th><th>Días a venc.</th><th>Cantidad</th><th>Peso (Kg)</th><th>Observaciones</th><th>Responsable</th><th>Modificaciones</th>${act?'<th>Acciones</th>':''}</tr>
+${l.map(r=>`<tr class="${r.v15?'bad':''}">${suc?`<td>${stag(r)}</td>`:''}<td>${esc(r.producto)}</td><td>${esc(r.proveedor)}</td><td>${fd(r.f_recepcion)}</td><td>${fd(r.f_vencimiento)}</td><td>${tagV(r)}</td><td>${n1(r.cantidad)}</td><td>${n1(r.peso)}</td><td style="white-space:normal;min-width:140px">${esc(r.observaciones||'')}</td><td>${esc(r.responsable)}</td><td>${hcell(r)}</td>${act?`<td>${abE(r)}</td>`:''}</tr>`).join('')||'<tr><td colspan="13">Sin registros</td></tr>'}</table></div>`}
 function formE(ed){const d=getDrE(),D=d&&d.id===(ed?ed.id:'')?d.f:null,V=(k,def)=>D&&D[k]!=null?D[k]:def;if(d&&!D)LS('dre_'+user.n,null);
  const pv=V('ep',ed?(PRODE.includes(ed.producto)?ed.producto:'__o'):PRODE[0]),oo=pv==='__o',provs=[...new Set(allE().map(r=>r.proveedor).filter(Boolean))].sort();
  return `<div class="grid two"><form class="card" id="fE"><h2>${ed?'Editar envasado'+(user.role==='cal'?' · '+esc(ed.sucursal):''):'Nueva recepción · Envasado al vacío'}</h2>${user.role==='suc'&&gm()?`<div class="off" style="margin-bottom:12px">${gm()}</div>`:''}<div class="grid">
@@ -318,6 +342,7 @@ function formE(ed){const d=getDrE(),D=d&&d.id===(ed?ed.id:'')?d.f:null,V=(k,def)
  <div class="card auto"><h2>Análisis automático</h2><div><span>Días hasta el vencimiento</span><b id="e1">-</b></div><div><span>Resultado</span><b id="e2">-</b></div>
  <div class="hint" style="margin-top:12px"><span class="dot" style="background:var(--ok)"></span>15 días o más hasta el vencimiento → Conforme<br><span class="dot" style="background:var(--nc)"></span>Menos de 15 días → No conforme</div></div></div>`}
 function bindFormE(){const g=id=>$('#'+id).value,p=$('#ep');
+ if($('#resp'))$('#resp').oninput=e=>{resp=e.target.value;SSt.setItem('r',resp)};
  ['input','change'].forEach(ev=>$('#fE').addEventListener(ev,saveDrE));
  p.onchange=()=>{$('#epo').style.display=$('#eoh').style.display=p.value==='__o'?'block':'none'};
  if($('#cxE'))$('#cxE').onclick=()=>{editE=null;clrDrE();render()};
@@ -332,7 +357,7 @@ function bindFormE(){const g=id=>$('#'+id).value,p=$('#ep');
   const prev=editE?allE().find(x=>x.id===editE):null,id=editE||uid();
   const r={id,sucursal:prev?prev.sucursal:user.n,responsable:prev?prev.responsable:resp,producto:prod,proveedor:prov,f_recepcion:g('efr'),f_vencimiento:g('efv'),cantidad:+g('eq'),peso:+g('ekg'),observaciones:clean(g('eob'))||null,created_at:(prev&&prev.created_at)||new Date().toISOString(),historial:prev?hist(prev):[]};
   if(prev){const ch=difsE(prev,r);if(!ch.length){msg='No hubo cambios para guardar';msgT=Date.now();editE=null;clrDrE();render();return}r.historial=[...hist(prev),{u:user.role==='cal'?resp+' (Calidad)':resp,t:new Date().toISOString(),c:ch}]}
-  LS('qe',[...(LS('qe')||[]).filter(x=>x.id!==id),r]);msg=editE?'Cambios guardados':'Registro guardado';msgT=Date.now();editE=null;clrDrE();sync(true)}}
+  encReg(r.sucursal,r.f_recepcion,prev&&prev.f_recepcion);LS('qe',[...(LS('qe')||[]).filter(x=>x.id!==id),r]);msg=editE?'Cambios guardados':'Registro guardado';msgT=Date.now();editE=null;clrDrE();sync(true)}}
 function viewSucE(){const h=allE().filter(esHoy);
  return head(`${user.n} · Envasados al vacío`)+`<main>${tabs()}
  <div class="card"><label>Responsable de la carga *</label><input id="resp" value="${esc(resp)}" placeholder="Nombre y apellido"></div>
@@ -361,11 +386,11 @@ function viewCalE(){const l=filtE(),s=statsE(l),N=s.N,lt=kfe==='v'?l.filter(r=>r
  ${e.length?`<tr style="font-weight:700;background:#f1f6f2"><td>Total</td><td>${N}</td><td>${n1(s.u)}</td><td>${n1(s.kg)}</td><td>${s.nd?Math.round(s.avg):'-'}</td>${red(s.v15)}<td>${n1(s.u/s.span)}</td></tr>`:''}</table></div></div>
  <div class="card"><h2>Incumplimientos por proveedor</h2><div class="sn">${sn}</div><div class="tw"><table><tr><th>Proveedor</th><th>Recep.</th><th>Venc. &lt; 15 d</th></tr>${s.prov.map(([k,o])=>`<tr><td>${esc(k)}</td><td>${o.n}</td>${o.v15?`<td style="color:#a1241f;font-weight:700">${o.v15} · ${n1(o.v15/o.n*100)}%</td>`:'<td>0 · 0%</td>'}</tr>`).join('')||'<tr><td colspan="3">Sin datos</td></tr>'}</table></div><div class="hint" style="margin-top:8px">Ordenado de peor a mejor.</div></div></div>
  <div class="card" id="rege"><h2>Registros del período <small style="color:var(--mu);font-weight:400">${kfe?lt.length+' de '+N:N+' en total'}</small></h2>${kfe?`<div class="row" style="align-items:center;margin:-4px 0 12px"><span class="tag nc" style="flex:none">Filtro: vencimiento &lt; 15 días</span><button type="button" class="btn o s" id="kxe" style="flex:none">✕ Quitar filtro</button></div>`:'<div class="hint" style="margin:-8px 0 12px">Tocá un indicador de arriba para filtrar esta tabla.</div>'}${rowsE(lt,1,1)}</div>${sto()}</main>`}
-function bindCalE(){bindFilt();if(editE)bindFormE();
+function bindCalE(){bindFilt();bindOrd();if(editE)bindFormE();
  document.querySelectorAll('[data-ede]').forEach(b=>b.onclick=()=>{const d=getDrE();if(d&&d.id!==b.dataset.ede&&editE&&!confirm('Tenés cambios sin guardar. ¿Descartarlos?'))return;clrDrE();editE=b.dataset.ede;render();scrollTo(0,0)});
  document.querySelectorAll('[data-dle]').forEach(b=>b.onclick=()=>{const id=b.dataset.dle,r=allE().find(x=>x.id===id);if(!r)return;
   if(!confirm(`¿Borrar definitivamente este registro?\n\n${r.sucursal} · ${r.producto} · ${r.proveedor} · recibido ${fd(r.f_recepcion)} · vence ${fd(r.f_vencimiento)} · resp. ${r.responsable}\n\nNo se puede deshacer.`))return;
-  LS('qe',(LS('qe')||[]).filter(x=>x.id!==id));scE(gcE().filter(x=>x.id!==id));LS('qde',[...(LS('qde')||[]),id]);if(editE===id){editE=null;clrDrE()}msg='Registro borrado';msgT=Date.now();sync(true)});
+  encReg(r.sucursal,r.f_recepcion);LS('qe',(LS('qe')||[]).filter(x=>x.id!==id));scE(gcE().filter(x=>x.id!==id));LS('qde',[...(LS('qde')||[]),id]);if(editE===id){editE=null;clrDrE()}msg='Registro borrado';msgT=Date.now();sync(true)});
  document.querySelectorAll('[data-kfe]').forEach(c=>c.onclick=c.onkeydown=e=>{if(e.type==='keydown'&&e.key!=='Enter')return;const k=c.dataset.kfe;kfe=kfe===k?'':k;render();const t=$('#rege');if(kfe&&t)t.scrollIntoView({behavior:'smooth',block:'start'})});
  if($('#kxe'))$('#kxe').onclick=()=>{kfe='';render()}}
 function excelE(wb,l,suc,mes){const s=statsE(l),f1=v=>+(+v).toFixed(1);
@@ -378,6 +403,146 @@ function excelE(wb,l,suc,mes){const s=statsE(l),f1=v=>+(+v).toFixed(1);
   ['Proveedor','Recepciones','Venc. < 15 días','% incumplimiento'],...s.prov.map(([k,o])=>[k,o.n,o.v15,f1(o.v15/o.n*100)])];
  const w2=XLSX.utils.aoa_to_sheet(R);w2['!cols']=[42,14,12,12,16,14].map(w=>({wch:w}));
  XLSX.utils.book_append_sheet(wb,ws,'Envasados');XLSX.utils.book_append_sheet(wb,w2,'Resumen envasados')}
-async function restDr(){const de=getDrE();if(de&&de.id&&user.role==='cal')editE=de.id;const d=getDr();if(!d)return;if(d.id&&user.role==='cal')editId=d.id;const fx=await IDB.get('df_'+user.n);if(fx&&fx.id===d.id)foto=fx.img}
-IDB.open().then(async()=>{if(user){CACHE[ck()]=(await IDB.get(ck()))||[];CACHE[ckE()]=(await IDB.get(ckE()))||[];await restDr()}render();if(user)sync()});
+// ---------- Achuras ----------
+const PRA=['Hígado','Riñón','Rabo','Lengua','Chinchulines','Molleja','Centro entraña','Mondongo','Sesos','Corazón','Quijada'];
+const CART={m:['Hígado','Corazón','Sesos'],j:['Hígado','Corazón','Riñón','Molleja','Chinchulines','Sesos']};
+const TIPA={2:'m',4:'j',6:'s',1:'l'},TNA={m:'Ingreso martes',j:'Ingreso jueves',s:'Descarte sábado',l:'Descarte lunes'},DNA=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const SUCS=['Independencia','Paunero','Arenales','San Martín'];
+const ACOLS=['id','sucursal','responsable','tipo','f_recepcion','producto','unidades','peso','rem_unidades','rem_peso','observaciones','created_at','historial'];
+const fullA=r=>{const o={};ACOLS.forEach(k=>o[k]=r[k]===undefined?(k==='historial'?[]:null):r[k]);return o};
+const ckA=()=>ck()+'_a',gcA=()=>CACHE[ckA()]||[],scA=v=>{CACHE[ckA()]=v;IDB.set(ckA(),v)};
+const addDs=(f,n)=>{const d=new Date(f+'T12:00');d.setDate(d.getDate()+n);return d.toLocaleDateString('en-CA')},dowF=f=>new Date(f+'T12:00').getDay(),cyc=f=>addDs(f,-((dowF(f)+5)%7));
+const esIng=t=>t==='m'||t==='j',fueraCart=(t,p)=>esIng(t)&&CART.m.concat(CART.j).includes(p)&&!CART[t].includes(p);
+const CAMPOSA=[['tipo','Carga',t=>TNA[t]||t],['f_recepcion','Fecha',fd],['producto','Producto'],['unidades','Unidades',n1],['peso','Peso (Kg)',n1],['rem_unidades','Quedaba del martes (u)',n1],['rem_peso','Quedaba del martes (Kg)',n1],['observaciones','Observaciones']];
+const difsA=(a,b)=>CAMPOSA.filter(([k,,f])=>f===n1?+(a[k]||0)!==+(b[k]||0):String(a[k]??'')!==String(b[k]??'')).map(([k,l,f])=>[l,f?f(a[k]??0):String(a[k]||'-'),f?f(b[k]??0):String(b[k]||'-')]);
+const AFF=['aP','aPo','aU','aK','aRu','aRk','aOb','aT','aF'];
+const getDrA=()=>user?LS('dra_'+user.n):null,clrDrA=()=>{if(user)LS('dra_'+user.n,null)};
+const saveDrA=()=>{if(!user||!$('#fA'))return;const f={};AFF.forEach(k=>{const e=$('#'+k);if(e)f[k]=e.value});LS('dra_'+user.n,{id:editA||'',f})};
+function allA(){const m=new Map();[...gcA(),...(LS('qa')||[])].forEach(r=>m.set(r.id,r));const dl=LS('qda')||[];let l=[...m.values()].filter(r=>!dl.includes(r.id));if(user.role==='suc')l=l.filter(r=>r.sucursal===user.n);
+ return l.map(r=>({...r,fc:fueraCart(r.tipo,r.producto)})).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))}
+async function syncA(){const dd=LS('qda')||[];
+ if(dd.length){const r=await fetch(B+'/achuras?id=in.('+dd.join(',')+')',{method:'DELETE',headers:HD});if(!r.ok)throw new Error('Borrar: '+r.status+' '+(await r.text()).slice(0,140));LS('qda',[]);scA(gcA().filter(x=>!dd.includes(x.id)))}
+ const q=LS('qa')||[];
+ if(q.length){const r=await fetch(B+'/achuras?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q.map(fullA))});if(!r.ok)throw new Error('Guardar: '+r.status+' '+(await r.text()).slice(0,140));LS('qa',[])}
+ const f=user.role==='suc'?'&sucursal=eq.'+encodeURIComponent(user.n):'';
+ const full=Date.now()-lastFullA>6e5||!gcA().length,rows=await pull(f,full,'achuras');scA(full?rows:mergeRows(gcA(),rows));if(full)lastFullA=Date.now()}
+// lote al que corresponde una carga (remanente del jueves y descartes)
+const loteDe=(t,f,suc)=>{const lt=t==='l'?'j':'m',lf=addDs(f,t==='j'?-2:-4);return allA().filter(r=>r.sucursal===suc&&r.tipo===lt&&r.f_recepcion===lf)};
+const UK=(u,k)=>`${n1(u||0)} / ${n1(k||0)}`;
+function weekA(suc,f){const m=cyc(f),D={m,j:addDs(m,2),s:addDs(m,4),l:addDs(m,6)},l=allA().filter(r=>r.sucursal===suc&&r.f_recepcion>=m&&r.f_recepcion<=D.l&&r.f_recepcion===D[r.tipo]);
+ const ps=PRA.filter(p=>l.some(r=>r.producto===p)).concat([...new Set(l.map(r=>r.producto))].filter(p=>!PRA.includes(p)));
+ const C=['m','j','r','s','l'],H={m:'Ingreso mar. '+fd(D.m).slice(0,5),j:'Ingreso jue. '+fd(D.j).slice(0,5),r:'Quedaba del martes (jue.)',s:'Descarte sáb. '+fd(D.s).slice(0,5),l:'Descarte lun. '+fd(D.l).slice(0,5)};
+ const get=(c,p)=>c==='r'?l.find(r=>r.tipo==='j'&&r.producto===p&&(+r.rem_peso||+r.rem_unidades)):l.find(r=>r.tipo===c&&r.producto===p);
+ const cel=(c,p)=>{const r=get(c,p);if(!r)return'<td class="x" style="color:var(--mu)">—</td>';const u=c==='r'?r.rem_unidades:r.unidades,k=c==='r'?r.rem_peso:r.peso;return`<td style="${(c==='s'||c==='l')&&+k?'color:#a1241f;font-weight:700':''}">${UK(u,k)}${c!=='r'&&r.fc?' ⚠':''}</td>`};
+ const tot=c=>{const x=c==='r'?l.filter(r=>r.tipo==='j'):l.filter(r=>r.tipo===c);return x.length?`<td>${UK(x.reduce((a,r)=>a+(+(c==='r'?r.rem_unidades:r.unidades)||0),0),x.reduce((a,r)=>a+(+(c==='r'?r.rem_peso:r.peso)||0),0))}</td>`:'<td>—</td>'};
+ return `<div class="tw"><table class="wka"><tr><th>Producto</th>${C.map(c=>`<th>${H[c]}<br>[UNI / Kg]</th>`).join('')}</tr>${ps.map(p=>`<tr><td>${esc(p)}</td>${C.map(c=>cel(c,p)).join('')}</tr>`).join('')||'<tr><td colspan="6">Sin cargas esta semana</td></tr>'}${ps.length?`<tr style="font-weight:700;background:#f1f6f2"><td>Total</td>${C.map(tot).join('')}</tr>`:''}</table></div>${l.some(r=>r.fc)?'<div class="hint" style="margin-top:6px">⚠ = producto que no corresponde a ese día según la cartelería.</div>':''}`}
+function formA(ed){const cal=user.role==='cal',d=getDrA(),D=d&&d.id===(ed?ed.id:'')?d.f:null,V=(k,def)=>D&&D[k]!=null?D[k]:def;if(d&&!D)LS('dra_'+user.n,null);
+ const t=cal&&ed?V('aT',ed.tipo):TIPA[dowF(today())],f=cal&&ed?V('aF',ed.f_recepcion):today(),suc=ed?ed.sucursal:user.n,ing=esIng(t);
+ const lote=ing?[]:loteDe(t,f,suc).map(r=>r.producto),opts=ing?PRA:[...new Set(lote)].sort((a,b)=>(PRA.indexOf(a)+1||99)-(PRA.indexOf(b)+1||99));
+ const pv0=ed?((opts.includes(ed.producto))?ed.producto:'__o'):(opts[0]||'__o'),pv=V('aP',pv0),oo=pv==='__o';
+ return `<div class="grid two"><form class="card" id="fA"><h2>${ed?'Editar achura · '+esc(ed.sucursal):TNA[t]+' · Achuras'}</h2>${!cal&&gm()?`<div class="off" style="margin-bottom:12px">${gm()}</div>`:''}<div class="grid">
+ ${cal&&ed?`<div><label>Carga</label><select id="aT">${Object.keys(TNA).map(k=>`<option value="${k}" ${t===k?'selected':''}>${TNA[k]}</option>`).join('')}</select></div><div><label>Fecha</label><input type="date" id="aF" value="${esc(f)}"></div>`:''}
+ <div><label>Producto *</label><select id="aP">${opts.map(p=>`<option ${pv===p?'selected':''}>${esc(p)}</option>`).join('')}<option value="__o" ${oo?'selected':''}>Otro…</option></select><input id="aPo" placeholder="Nombre del producto" value="${esc(V('aPo',ed&&!opts.includes(ed.producto)?ed.producto:''))}" style="display:${oo?'block':'none'};margin-top:6px"></div>
+ ${cal&&ed?'':`<div><label>Fecha</label><input value="${fd(f)}" readonly style="background:#f1f6f2;color:var(--mu)"><div class="hint">Siempre la de hoy</div></div>`}
+ <div><label>${ing?'Unidades recibidas':'Unidades descartadas'} *</label><input type="number" step="any" inputmode="numeric" id="aU" placeholder="0" value="${esc(V('aU',ed?ed.unidades:''))}"></div>
+ <div><label>${ing?'Peso recibido':'Peso descartado'} [Kg] *</label><input type="number" step="any" inputmode="decimal" id="aK" placeholder="0" value="${esc(V('aK',ed?ed.peso:''))}"></div>
+ ${t==='j'?`<div id="aRw" style="grid-column:1/-1"><label>¿Quedaba de este producto del martes? (opcional)</label><div class="row"><div><input type="number" step="any" inputmode="numeric" id="aRu" placeholder="Unidades" value="${esc(V('aRu',ed&&ed.rem_unidades!=null?ed.rem_unidades:''))}"></div><div><input type="number" step="any" inputmode="decimal" id="aRk" placeholder="Peso [Kg]" value="${esc(V('aRk',ed&&ed.rem_peso!=null?ed.rem_peso:''))}"></div></div><div class="hint">Se vende primero</div></div>`:''}
+ ${ing?`<div style="grid-column:1/-1"><label>Observaciones (opcional)</label><input id="aOb" placeholder="Ej: el proveedor dejó 2 kg más de lo pedido" value="${esc(V('aOb',ed?ed.observaciones||'':''))}"></div>`:''}</div>
+ <br><button class="btn">${ed?'💾 Guardar cambios':'+ Guardar producto'}</button> ${ed?'<button type="button" class="btn o" id="cxA">Cancelar</button>':''}<div class="err" id="feA"></div>${cal?'':'<div class="hint" style="margin-top:10px">Se carga un producto por vez. ⚠ Revisá bien antes de guardar: una vez guardado, solo Calidad puede corregirlo.</div>'}</form>
+ <div class="card auto"><h2>Análisis automático</h2><section id="anA"></section></div></div>`}
+function bindFormA(){const g=i=>$('#'+i)?$('#'+i).value:'',ed=editA?allA().find(r=>r.id===editA):null,cal=user.role==='cal';
+ if($('#resp'))$('#resp').oninput=e=>{resp=e.target.value;SSt.setItem('r',resp)};
+ ['input','change'].forEach(ev=>$('#fA').addEventListener(ev,saveDrA));
+ if($('#aT'))$('#aT').onchange=()=>{saveDrA();render()};
+ if($('#cxA'))$('#cxA').onclick=()=>{editA=null;clrDrA();render()};
+ const tt=()=>cal&&ed?g('aT'):TIPA[dowF(today())],ff=()=>cal&&ed?g('aF'):today(),suc=ed?ed.sucursal:user.n,prod=()=>g('aP')==='__o'?pnameL(g('aPo'),PRA):g('aP');
+ const live=()=>{const t=tt(),p=prod(),u=+g('aU')||0,k=+g('aK')||0;let h='';
+  if(t==='j'&&$('#aRw')){const enM=loteDe('j',ff(),suc).some(r=>norm(r.producto)===norm(p||''));$('#aRw').style.display=enM?'':'none'}
+  if(esIng(t)){h=`<div><span>Producto</span><b>${esc(p||'-')}</b></div><div><span>Cartelería del ${t==='m'?'martes':'jueves'}</span><b>${!p?'-':fueraCart(t,p)?'<span class="tag nc">No corresponde · incumplimiento</span>':CART[t].includes(p)?'<span class="tag ok">Corresponde</span>':'<span class="tag no">Sin regla en la cartelería</span>'}</b></div><div><span>Recibido</span><b>${n1(u)} u / ${n1(k)} kg</b></div>`;
+   if(t==='j'&&+g('aRk'))h+=`<div><span>Quedaba del martes</span><b><span class="tag dev">${n1(+g('aRk'))} kg · vender primero</span></b></div>`}
+  else h=`<div><span>Producto</span><b>${esc(p||'-')}</b></div><div><span>Descartado</span><b><span class="tag ${k?'nc':'ok'}">${n1(u)} u / ${n1(k)} kg</span></b></div><div class="hint" style="margin-top:12px">Meta: 0 kg descartados.</div>`;
+  $('#anA').innerHTML=h};
+ $('#aP').onchange=()=>{$('#aPo').style.display=g('aP')==='__o'?'block':'none';live()};['aPo','aU','aK','aRk','aRu'].forEach(i=>{if($('#'+i))$('#'+i).addEventListener('input',live)});live();
+ $('#fA').onsubmit=e=>{e.preventDefault();resp=$('#resp').value.trim();SSt.setItem('r',resp);const fe=$('#feA'),t=tt(),f=ff(),p=prod();
+  if(!resp){fe.textContent=cal?'Completá tu nombre (quién modifica)':'Completá el responsable de la carga';return}
+  if(!t||!f){fe.textContent='Hoy no corresponde carga de achuras';return}
+  if(!p){fe.textContent='Elegí o escribí el producto';return}
+  if(g('aU')===''||+g('aU')<0||!(+g('aK')>0)){fe.textContent='Completá unidades y peso [Kg]';return}
+  if(allA().some(x=>x.id!==editA&&x.sucursal===suc&&x.tipo===t&&x.f_recepcion===f&&norm(x.producto)===norm(p))){fe.textContent=p+' ya está cargado en esta carga.'+(cal?'':' Si hay un error, avisá a Calidad.');return}
+  const prev=ed,id=editA||uid(),rv=t==='j'&&$('#aRw')&&$('#aRw').style.display!=='none';
+  const r={id,sucursal:suc,responsable:prev?prev.responsable:resp,tipo:t,f_recepcion:f,producto:p,unidades:+g('aU'),peso:+g('aK'),rem_unidades:rv&&g('aRu')!==''?+g('aRu'):null,rem_peso:rv&&g('aRk')!==''?+g('aRk'):null,observaciones:esIng(t)?clean(g('aOb'))||null:null,created_at:(prev&&prev.created_at)||new Date().toISOString(),historial:prev?hist(prev):[]};
+  if(prev){const ch=difsA(prev,r);if(!ch.length){msg='No hubo cambios para guardar';msgT=Date.now();editA=null;clrDrA();render();return}r.historial=[...hist(prev),{u:resp+' (Calidad)',t:new Date().toISOString(),c:ch}]}
+  encReg(r.sucursal,r.f_recepcion,prev&&prev.f_recepcion);LS('qa',[...(LS('qa')||[]).filter(x=>x.id!==id),r]);msg=prev?'Cambios guardados':'✔ '+p+' guardado. Seguí con el próximo producto.';msgT=Date.now();editA=null;clrDrA();sync(true)}}
+function viewSucA(){const f=today(),d=dowF(f),t=TIPA[d];
+ const ban=t?`<div class="ban ${t==='m'||t==='s'?'bm':'bj'}">📅 Hoy es <b>${DNA[d]} ${fd(f)}</b> → corresponde <b>${TNA[t]}</b>.${t==='j'?' Acordate: vender primero lo que quede del martes.':t==='s'?' Se descarta lo que sobró del lote del martes.':t==='l'?' Se descarta lo que sobró del lote del jueves.':''}</div>`:`<div class="ban bx">📅 Hoy es <b>${DNA[d]} ${fd(f)}</b>: no corresponde ninguna carga de achuras. Ingresos: <b>martes y jueves</b> · Descartes: <b>sábado y lunes a la mañana</b>.</div>`;
+ return head(`${user.n} · Achuras`)+`<main>${tabs()}
+ <div class="card"><label>Responsable de la carga *</label><input id="resp" value="${esc(resp)}" placeholder="Nombre y apellido"></div>${ban}
+ ${t?formA(null):''}
+ <div class="card"><h2>Esta semana · ${user.n} · Achuras</h2><div class="hint" style="margin:-8px 0 12px">Solo lectura · si hay un error, avisá a Calidad para que lo corrija.</div>${weekA(user.n,f)}</div></main>`}
+function bindSucA(){editA=null;if($('#fA'))bindFormA();$('#resp').oninput=e=>{resp=e.target.value;SSt.setItem('r',resp)}}
+// ---- Calidad ----
+function filtA(){return allA().filter(r=>(!flt.from||r.f_recepcion>=flt.from)&&(!flt.to||r.f_recepcion<=flt.to)&&(!flt.suc||r.sucursal===flt.suc))}
+function statsA(){const base=filtA(),l=fpa?base.filter(r=>norm(r.producto)===norm(fpa)):base,ing=l.filter(r=>esIng(r.tipo)),des=l.filter(r=>!esIng(r.tipo));
+ const S=(x,k)=>x.reduce((a,r)=>a+(+r[k]||0),0);
+ const grp={};base.filter(r=>esIng(r.tipo)).forEach(r=>{(grp[r.sucursal+'|'+r.f_recepcion]??=[]).push(r)});
+ const ingG=Object.entries(grp).filter(([,v])=>!fpa||v.some(r=>norm(r.producto)===norm(fpa))),incum=ingG.filter(([,v])=>v.some(r=>r.fc&&(!fpa||norm(r.producto)===norm(fpa))));
+ const all0=allA(),min=all0.length?all0.reduce((a,r)=>r.f_recepcion<a?r.f_recepcion:a,'9999'):null,ayer=addDs(today(),-1);
+ const desde=min?(flt.from&&flt.from>min?flt.from:min):null,hasta=flt.to&&flt.to<ayer?flt.to:ayer,esp=[];
+ if(desde)for(let f=desde;f<=hasta;f=addDs(f,1)){const t=TIPA[dowF(f)];if(t==='m'||t==='j')(flt.suc?[flt.suc]:SUCS).forEach(s=>esp.push({s,f}))}
+ const noc=esp.filter(e=>!all0.some(r=>r.sucursal===e.s&&r.f_recepcion===e.f&&esIng(r.tipo)));
+ const P={},lm={},lj={};ing.forEach(r=>{const o=P[pnameL(r.producto,PRA)]??={ru:0,rk:0,du:0,dk:0};o.ru+=+r.unidades||0;o.rk+=+r.peso||0;const L=r.tipo==='m'?lm:lj;const q=(L[pnameL(r.producto,PRA)]??={});(q[r.sucursal+'|'+r.f_recepcion]??={u:0,k:0});q[r.sucursal+'|'+r.f_recepcion].u+=+r.unidades||0;q[r.sucursal+'|'+r.f_recepcion].k+=+r.peso||0});
+ des.forEach(r=>{const p=pnameL(r.producto,PRA),o=P[p]??={ru:0,rk:0,du:0,dk:0};o.du+=+r.unidades||0;o.dk+=+r.peso||0;const L=r.tipo==='s'?lm:lj,key=r.sucursal+'|'+addDs(r.f_recepcion,-4);if(L[p]&&L[p][key]){L[p][key].u-=+r.unidades||0;L[p][key].k-=+r.peso||0}});
+ const vp=(L,p)=>{const v=Object.values(L[p]||{});return v.length?{u:v.reduce((a,x)=>a+x.u,0)/v.length,k:v.reduce((a,x)=>a+x.k,0)/v.length}:null};
+ return{l,ing,des,ru:S(ing,'unidades'),rk:S(ing,'peso'),du:S(des,'unidades'),dk:S(des,'peso'),dsk:S(des.filter(r=>r.tipo==='s'),'peso'),dlk:S(des.filter(r=>r.tipo==='l'),'peso'),ingG,incum,esp,noc,P,vm:p=>vp(lm,p),vj:p=>vp(lj,p)}}
+const abA=r=>`<button type="button" class="btn o s" data-eda="${r.id}">✏️ Editar</button> <button type="button" class="btn o s dl" data-dla="${r.id}">🗑 Borrar</button>`;
+function rowsA(l){l=ordS(l);if(vw==='m')return l.length?l.map(r=>`<div class="rc ${!esIng(r.tipo)&&+r.peso?'bad':''}"><div style="margin-bottom:6px">${stag(r)}</div><div class="rt"><b>${esc(r.producto)}</b><span class="tag ${esIng(r.tipo)?(r.fc?'nc':'ok'):'no'}">${TNA[r.tipo]}</span></div><div class="rg"><span>Fecha</span><b>${fd(r.f_recepcion)}</b><span>[UNI / Kg]</span><b>${UK(r.unidades,r.peso)}</b>${r.tipo==='j'&&(+r.rem_peso||+r.rem_unidades)?`<span>Quedaba del martes</span><b>${UK(r.rem_unidades,r.rem_peso)}</b>`:''}${esIng(r.tipo)?`<span>Cartelería</span><b>${r.fc?'Incumple':'Cumple'}</b>`:''}${r.observaciones?`<span>Observaciones</span><b>${esc(r.observaciones)}</b>`:''}<span>Responsable</span><b>${esc(r.responsable)}</b><span>Modificaciones</span><b>${hcell(r)}</b></div><div class="ac">${abA(r)}</div></div>`).join(''):'<p class="hint">Sin registros</p>';
+ return `<div class="tw"><table><tr>${thS()}<th>Carga</th><th>Fecha</th><th>Producto</th><th>Unidades</th><th>Kg</th><th>Quedaba del martes [UNI / Kg]</th><th>Cartelería</th><th>Observaciones</th><th>Responsable</th><th>Modificaciones</th><th>Acciones</th></tr>
+ ${l.map(r=>`<tr class="${!esIng(r.tipo)&&+r.peso?'bad':''}"><td>${stag(r)}</td><td>${TNA[r.tipo]||esc(r.tipo)}</td><td>${fd(r.f_recepcion)}</td><td>${esc(r.producto)}</td><td>${n1(r.unidades)}</td><td>${n1(r.peso)}</td><td>${r.tipo==='j'&&(+r.rem_peso||+r.rem_unidades)?UK(r.rem_unidades,r.rem_peso):'<span style="color:var(--mu)">—</span>'}</td><td>${esIng(r.tipo)?(r.fc?'<span class="tag nc">Incumple</span>':'<span class="tag ok">Cumple</span>'):'<span style="color:var(--mu)">—</span>'}</td><td style="white-space:normal;min-width:140px">${esc(r.observaciones||'')}</td><td>${esc(r.responsable)}</td><td>${hcell(r)}</td><td>${abA(r)}</td></tr>`).join('')||'<tr><td colspan="12">Sin registros</td></tr>'}</table></div>`}
+function viewCalA(){const s=statsA(),pc=(a,b)=>n1(b?a/b*100:0)+'%',sn=(flt.suc?'Sucursal '+esc(flt.suc):'Todas las sucursales')+(fpa?' · '+esc(fpa):'');
+ const lt=kfa==='d'?s.des:kfa==='c'?s.l.filter(r=>r.fc):s.l;
+ const K=(k,c,lab,val,s1,s2)=>`<div class="card kpi ${c} ${k===null?'nf':''} ${k&&kfa===k?'act':''}" ${k!==null?`data-kfa="${k}" role="button" tabindex="0"`:''}><div class="kl">${lab}</div><b>${val}</b><span>${s1}</span><span>${s2}</span></div>`;
+ const ed=editA?allA().find(r=>r.id===editA):null;if(editA&&!ed)editA=null;const m=gm();
+ const cycs=[...new Set(allA().map(r=>cyc(r.f_recepcion)))].sort().reverse(),wsel=cycs.find(c=>flt.from===c&&flt.to===addDs(c,6))||'';
+ const prods=[...new Set(allA().map(r=>pnameL(r.producto,PRA)))].sort((a,b)=>(PRA.indexOf(a)+1||99)-(PRA.indexOf(b)+1||99));
+ const Pk=PRA.filter(p=>s.P[p]).concat(Object.keys(s.P).filter(p=>!PRA.includes(p)));
+ const sem=()=>{const ini=s.esp.length?s.esp[0].f:null;if(!ini&&!s.l.length)return'<p class="hint">Sin datos</p>';const fs=[...new Set(s.l.map(r=>cyc(r.f_recepcion)).concat(s.esp.map(e=>cyc(e.f))))].sort().reverse();
+  const all0=allA();let h='<div class="tw"><table class="wka"><tr><th>Semana</th><th>Sucursal</th><th>Ingreso mar.</th><th>Ingreso jue. + remanente</th><th>Descarte sáb.</th><th>Descarte lun.</th></tr>';
+  fs.forEach(c=>(flt.suc?[flt.suc]:SUCS).forEach(su=>{const D={m:c,j:addDs(c,2),s:addDs(c,4),l:addDs(c,6)},x=all0.filter(r=>r.sucursal===su&&r.f_recepcion===D[r.tipo]&&r.f_recepcion>=c&&r.f_recepcion<=D.l);
+   const ic=t=>{const v=x.filter(r=>r.tipo===t);if(!v.length)return D[t]>=today()?'<td style="color:var(--mu)">pendiente</td>':'<td style="color:#8a6410;font-weight:700">no cargado</td>';const fc=v.filter(r=>r.fc).map(r=>r.producto);const rem=t==='j'?v.reduce((a,r)=>a+(+r.rem_peso||0),0):0;return fc.length?`<td style="color:#a1241f;font-weight:700">⚠ ${esc(fc.join(', '))} fuera de cartelería</td>`:`<td style="color:#1d6b3a;font-weight:700">✔${t==='j'?' · rem. '+n1(rem)+' kg':''}</td>`};
+   const dc=t=>{const k=x.filter(r=>r.tipo===t).reduce((a,r)=>a+(+r.peso||0),0);return D[t]>today()?'<td style="color:var(--mu)">pendiente</td>':`<td style="font-weight:700;color:${k?'#a1241f':'#1d6b3a'}">${n1(k)} kg</td>`};
+   h+=`<tr><td>${fd(c).slice(0,5)} al ${fd(D.l).slice(0,5)}</td><td>${stag({sucursal:su})}</td>${ic('m')}${ic('j')}${dc('s')}${dc('l')}</tr>`}));return h+'</table></div>'};
+ return head('Perfil Calidad · Achuras')+`<main>${tabs()}${m?`<div class="off">${esc(m)}</div>`:''}
+ ${ed?`<div class="card"><label>Quién modifica (Calidad) *</label><input id="resp" value="${esc(resp)}" placeholder="Nombre y apellido"><div class="hint">Queda registrado en la columna Modificaciones como "Nombre (Calidad)".</div></div>${formA(ed)}`:''}
+ ${fcard(s.l.length+' registros de achuras en el período · el Excel incluye la hoja "Achuras"')}
+ <div class="card"><div class="row"><div><label>Semana (martes a lunes)</label><select id="fwa"><option value="">Elegir…</option>${cycs.map(c=>`<option value="${c}" ${wsel===c?'selected':''}>${fd(c).slice(0,5)} al ${fd(addDs(c,6)).slice(0,5)}</option>`).join('')}</select></div><div><label>Producto</label><select id="fpa"><option value="">Todos</option>${prods.map(p=>`<option ${fpa===p?'selected':''}>${esc(p)}</option>`).join('')}</select></div></div></div>
+ <div class="grid k5" style="grid-template-columns:repeat(4,minmax(0,1fr))">${K(null,'b','Recibido',n1(s.rk)+' kg',n1(s.ru)+' unidades','&nbsp;')}
+ ${K('d','r','% de kg descartados (sábado + lunes)',pc(s.dk,s.rk),n1(s.dk)+' kg de '+n1(s.rk)+' · meta 0%','sáb. '+n1(s.dsk)+' kg · lun. '+n1(s.dlk)+' kg')}
+ ${K('c','r','% de ingresos que no cumplen la cartelería',pc(s.incum.length,s.ingG.length),s.incum.length+' de '+s.ingG.length+' · meta 0%','producto fuera de su día')}
+ ${K(null,'y','% de ingresos no cargados',pc(s.noc.length,s.esp.length),s.noc.length+' de '+s.esp.length+' martes/jueves · meta 0%','&nbsp;')}</div>
+ <div class="card"><h2>Por producto</h2><div class="sn">${sn}</div><div class="tw"><table><tr><th>Producto</th><th>Recibido [UNI / Kg]</th><th>Descartado [UNI / Kg]</th><th>% descarte [Kg]</th><th>Venta prom. lote martes [UNI / Kg]</th><th>Venta prom. lote jueves [UNI / Kg]</th></tr>
+ ${Pk.map(p=>{const o=s.P[p],a=s.vm(p),b=s.vj(p);return`<tr><td>${esc(p)}</td><td>${UK(o.ru,o.rk)}</td><td>${UK(o.du,o.dk)}</td><td style="font-weight:700;color:${o.dk?'#a1241f':'#1d6b3a'}">${pc(o.dk,o.rk)}</td><td>${a?UK(a.u,a.k):'—'}</td><td>${b?UK(b.u,b.k):'—'}</td></tr>`}).join('')||'<tr><td colspan="6">Sin datos</td></tr>'}</table></div><div class="hint" style="margin-top:8px">Venta prom. por lote = recibido − descartado, promedio por lote. Sirve para estimar el pedido (martes → hasta el jueves · jueves → hasta el domingo).</div></div>
+ <div class="card"><h2>Por sucursal</h2><div class="tw"><table><tr><th>Sucursal</th><th>% descarte [Kg]</th><th>Ingresos que no cumplen la cartelería</th><th>Ingresos no cargados</th></tr>
+ ${(flt.suc?[flt.suc]:SUCS).map(su=>{const r=s.ing.filter(x=>x.sucursal===su).reduce((a,x)=>a+(+x.peso||0),0),d=s.des.filter(x=>x.sucursal===su).reduce((a,x)=>a+(+x.peso||0),0),ic=s.incum.filter(([k])=>k.startsWith(su+'|')).length,nc=s.noc.filter(e=>e.s===su).length;return`<tr><td>${stag({sucursal:su})}</td><td style="font-weight:700;color:${d?'#a1241f':'#1d6b3a'}">${pc(d,r)}</td><td style="${ic?'color:#a1241f;font-weight:700':''}">${ic}</td><td style="${nc?'color:#8a6410;font-weight:700':''}">${nc}</td></tr>`}).join('')}</table></div></div>
+ <div class="card"><h2>Semáforo semanal</h2><div class="hint" style="margin:-8px 0 12px">Cada fila es una semana (martes a lunes) de una sucursal.</div>${sem()}</div>
+ <div class="card" id="rega"><h2>Registros del período <small style="color:var(--mu);font-weight:400">${kfa?lt.length+' de '+s.l.length:s.l.length+' en total'}</small></h2>${kfa?`<div class="row" style="align-items:center;margin:-4px 0 12px"><span class="tag nc" style="flex:none">Filtro: ${kfa==='d'?'descartes':'ingresos fuera de cartelería'}</span><button type="button" class="btn o s" id="kxa" style="flex:none">✕ Quitar filtro</button></div>`:'<div class="hint" style="margin:-8px 0 12px">Una fila por producto · tocá un indicador para filtrar.</div>'}${rowsA(lt)}</div>${sto()}</main>`}
+function bindCalA(){bindFilt();bindOrd();if(editA&&$('#fA'))bindFormA();
+ $('#fwa').onchange=e=>{const c=e.target.value;if(c){flt.from=c;flt.to=addDs(c,6)}render()};
+ $('#fpa').onchange=e=>{fpa=e.target.value;render()};
+ document.querySelectorAll('[data-eda]').forEach(b=>b.onclick=()=>{clrDrA();editA=b.dataset.eda;render();scrollTo(0,0)});
+ document.querySelectorAll('[data-dla]').forEach(b=>b.onclick=()=>{const id=b.dataset.dla,r=allA().find(x=>x.id===id);if(!r)return;
+  if(!confirm(`¿Borrar definitivamente este registro?\n\n${r.sucursal} · ${TNA[r.tipo]} · ${fd(r.f_recepcion)} · ${r.producto} · ${UK(r.unidades,r.peso)} [UNI / Kg]\n\nNo se puede deshacer.`))return;
+  encReg(r.sucursal,r.f_recepcion);LS('qa',(LS('qa')||[]).filter(x=>x.id!==id));scA(gcA().filter(x=>x.id!==id));LS('qda',[...(LS('qda')||[]),id]);if(editA===id){editA=null;clrDrA()}msg='Registro borrado';msgT=Date.now();sync(true)});
+ document.querySelectorAll('[data-kfa]').forEach(c=>c.onclick=c.onkeydown=e=>{if(e.type==='keydown'&&e.key!=='Enter')return;const k=c.dataset.kfa;kfa=kfa===k?'':k;render();const t=$('#rega');if(kfa&&t)t.scrollIntoView({behavior:'smooth',block:'start'})});
+ if($('#kxa'))$('#kxa').onclick=()=>{kfa='';render()}}
+function excelA(wb,suc,mes){const l=filtA().slice().sort((a,b)=>a.f_recepcion.localeCompare(b.f_recepcion)),s0=statsA(),f1=v=>+(+v).toFixed(1);
+ const ws=XLSX.utils.aoa_to_sheet([['CAMPO VERDE','','CONTROL DE ACHURAS · INGRESO Y DESCARTE'],['Período: '+mes],['Sucursal: '+(suc||'Todas')],[],
+  ['Carga','Fecha','Producto','Unidades','Peso (Kg)','Quedaba del martes (u)','Quedaba del martes (Kg)','Cartelería','Observaciones','Sucursal','Responsable','Modificaciones'],
+  ...l.map(r=>[TNA[r.tipo]||r.tipo,fd(r.f_recepcion),r.producto,+r.unidades||0,+r.peso||0,r.rem_unidades??'',r.rem_peso??'',esIng(r.tipo)?(r.fc?'INCUMPLE':'Cumple'):'',r.observaciones||'',r.sucursal,r.responsable,hist(r).map(m=>fdt(m.t)+' '+m.u+': '+(m.c||[]).map(c=>c[0]+' '+c[1]+' → '+c[2]).join('; ')).join(' | ')])]);
+ ws['!cols']=[16,12,18,10,10,12,12,12,30,16,20,50].map(w=>({wch:w}));
+ const R=[['RESUMEN ACHURAS · '+mes],['Sucursal',suc||'Todas'],[],['Indicador','Valor','Meta'],['Recibido (unidades)',f1(s0.ru),''],['Recibido (Kg)',f1(s0.rk),''],['% de kg descartados (sábado + lunes)',f1(s0.rk?s0.dk/s0.rk*100:0),'0'],['% de ingresos que no cumplen la cartelería',f1(s0.ingG.length?s0.incum.length/s0.ingG.length*100:0),'0'],['% de ingresos no cargados (martes/jueves)',f1(s0.esp.length?s0.noc.length/s0.esp.length*100:0),'0'],[],
+  ['Producto','Recibido (u)','Recibido (Kg)','Descartado (u)','Descartado (Kg)','% descarte (Kg)'],...Object.entries(s0.P).map(([p,o])=>[p,f1(o.ru),f1(o.rk),f1(o.du),f1(o.dk),f1(o.rk?o.dk/o.rk*100:0)])];
+ const w2=XLSX.utils.aoa_to_sheet(R);w2['!cols']=[42,14,14,14,14,14].map(w=>({wch:w}));
+ XLSX.utils.book_append_sheet(wb,ws,'Achuras');XLSX.utils.book_append_sheet(wb,w2,'Resumen achuras')}
+async function restDr(){const de=getDrE();if(de&&de.id&&user.role==='cal')editE=de.id;const da=getDrA();if(da&&da.id&&user.role==='cal')editA=da.id;const d=getDr();if(!d)return;if(d.id&&user.role==='cal')editId=d.id;const fx=await IDB.get('df_'+user.n);if(fx&&fx.id===d.id)foto=fx.img}
+IDB.open().then(async()=>{if(user){CACHE[ck()]=(await IDB.get(ck()))||[];CACHE[ckE()]=(await IDB.get(ckE()))||[];CACHE[ckA()]=(await IDB.get(ckA()))||[];await restDr()}render();if(user)sync()});
 </script></body></html>
