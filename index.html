@@ -58,7 +58,8 @@ td a,.rg a{color:var(--g);font-weight:600}
 .tabs{display:flex;gap:8px;flex-wrap:wrap}.tab{border:1px solid var(--g);background:#fff;color:var(--g);border-radius:99px;padding:9px 16px;font-weight:700}.tab.on{background:var(--g);color:#fff}
 tr.bad td{background:#fff5f5}.rc.bad{background:#fff5f5;border-color:#f3c9c7}textarea{width:100%;padding:11px;border:1px solid #cfd9d2;border-radius:10px;font:inherit;min-height:60px}
 .grid.k5{grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.grid.k5 .kpi{padding:12px 13px}@media(max-width:1050px){.grid.k5{grid-template-columns:repeat(2,minmax(0,1fr))}}body.mob .grid.k5{grid-template-columns:1fr 1fr}
-.kpi.nf{cursor:default}.ban{border-radius:14px;padding:14px 16px;font-weight:600}.ban.bj{background:#fdf6d8;border:1px solid #ecd27a;color:#6b5410}.ban.bm{background:#fde8e7;border:1px solid #f2b8b5;color:#8a2421}.ban.bx{background:#eef1ef;border:1px solid #cfd9d2;color:#3d4a42}
+.kpi.nf{cursor:default}.alr{background:#fdecea;border:1px solid #f2b8b5;border-left:5px solid #d9423e;color:#7d1d1a;border-radius:10px;padding:10px 12px;font-size:14px;font-weight:600;margin-top:12px;display:grid;gap:4px}
+.fts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}@media(max-width:700px){.fts{grid-template-columns:1fr}}body.mob .fts{grid-template-columns:1fr}.ftb{border:1px solid var(--ln);border-radius:12px;padding:10px;display:grid;gap:6px;align-content:start;background:#fbfdfb}.ftb b{font-size:13px}.ftb img{width:100%;max-height:150px;object-fit:cover;border-radius:8px}.ftb input[type=file]{padding:8px;font-size:13px}.chk{display:flex;gap:6px;align-items:center;font-size:13px;font-weight:600;margin:0}.chk input{width:auto}.ban{border-radius:14px;padding:14px 16px;font-weight:600}.ban.bj{background:#fdf6d8;border:1px solid #ecd27a;color:#6b5410}.ban.bm{background:#fde8e7;border:1px solid #f2b8b5;color:#8a2421}.ban.bx{background:#eef1ef;border:1px solid #cfd9d2;color:#3d4a42}
 .wka td,.wka th{text-align:center}.wka td:first-child,.wka th:first-child{text-align:left}.ds2{grid-template-columns:minmax(0,2.2fr) minmax(0,1fr)}@media(max-width:900px){.ds2{grid-template-columns:minmax(0,1fr)}}
 </style></head>
 <body><div id="app"></div>
@@ -81,15 +82,18 @@ const today=()=>new Date().toLocaleDateString('en-CA');
 const fd=d=>d?d.split('-').reverse().join('/'):'-';
 const n1=v=>(+v).toLocaleString('es-AR',{maximumFractionDigits:1});
 const SK=(CONFIG.SUPABASE_KEY||'').trim(),B=(CONFIG.SUPABASE_URL||'').trim().replace(/\/+$/,'').replace(/\/rest\/v1$/,'')+'/rest/v1',HD={apikey:SK,'Content-Type':'application/json',...(SK.startsWith('eyJ')?{Authorization:'Bearer '+SK}:{})};
-const PROD=['Media Res','Parrillero','Cuarto','Paleta','Bife','Asado'],CLA=['2D-VQ','2D-NT','SIN CLASIFICACIÓN'],TIP=['C1','SIN TIPIFICACIÓN'];
-const DCOLS=['id','sucursal','responsable','producto','proveedor','f_recepcion','f_faena','temp','clasif','tipif','peso_remito','peso_real','created_at','foto_url','historial'];
+const PROD=['Media Res','Parrillero','Cuarto','Paleta','Bife','Asado'],PROD_B=[...PROD],CLA=['2D-VQ','2D-NT','SIN CLASIFICACIÓN'],TIP=['C1','SIN TIPIFICACIÓN'];
+const DCOLS=['id','sucursal','responsable','producto','proveedor','f_recepcion','f_faena','temp','clasif','tipif','peso_remito','peso_real','created_at','foto_url','historial','observaciones','foto_ext','foto_int','foto_rem'];
 const fullRow=r=>{const o={};DCOLS.forEach(k=>o[k]=r[k]===undefined?(k==='historial'?[]:null):r[k]);return o};
 const uid=()=>crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const v=Math.random()*16|0;return(c=='x'?v:v&3|8).toString(16)});
 const hist=r=>Array.isArray(r.historial)?r.historial:[];
 const fdt=t=>{const d=new Date(t);return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})};
-const CAMPOS=[['producto','Producto'],['proveedor','Proveedor'],['f_recepcion','Fecha de recepción',fd],['f_faena','Fecha de faena',fd],['temp','Temperatura (°C)',n1],['clasif','Clasificación'],['tipif','Tipificación'],['peso_remito','Peso remito (Kg)',n1],['peso_real','Peso real (Kg)',n1]];
+const CAMPOS=[['observaciones','Observaciones'],['producto','Producto'],['proveedor','Proveedor'],['f_recepcion','Fecha de recepción',fd],['f_faena','Fecha de faena',fd],['temp','Temperatura (°C)',n1],['clasif','Clasificación'],['tipif','Tipificación'],['peso_remito','Peso remito (Kg)',n1],['peso_real','Peso real (Kg)',n1]];
 const difs=(a,b)=>CAMPOS.filter(([k,,f])=>f===n1?+a[k]!==+b[k]:String(a[k]??'')!==String(b[k]??'')).map(([k,l,f])=>[l,f?f(a[k]):String(a[k]??'-'),f?f(b[k]):String(b[k]??'-')]);
 const qf=()=>LS('qf')||[];
+const FT=[['ext','Foto de la parte externa de la pieza','Ext.'],['int','Foto de la parte interna de la pieza','Int.'],['rem','Foto del remito','Remito']],FCOL={ext:'foto_ext',int:'foto_int',rem:'foto_rem'};
+let FO={ext:null,int:null,rem:null},lastRem=null;const hasFO=()=>Object.values(FO).some(Boolean);
+const alerta=l=>l.length?`<div class="alr">${l.map(x=>`<div>⚠ ${x}</div>`).join('')}</div>`:'';
 // --- Cambios que deben reflejarse en Drive (fotos borradas/reemplazadas y reportes ya generados) ---
 const qdv=()=>LS('qdv')||[];
 const cerrado=f=>{if(!f)return false;const d=new Date(f+'T12:00'),dom=new Date(d);dom.setDate(d.getDate()+(7-d.getDay())%7);const fm=new Date(d.getFullYear(),d.getMonth()+1,0);return dom.toLocaleDateString('en-CA')<today()||fm.toLocaleDateString('en-CA')<today()};
@@ -106,14 +110,14 @@ const stag=r=>`<span class="stg" style="--c:${SCOL[r.sucursal]||'#4b5a50'}">${es
 const ordS=l=>ord?[...l].sort((a,b)=>String(a.sucursal).localeCompare(String(b.sucursal),'es')):l;
 const thS=()=>`<th><button type="button" class="thb" data-ord title="Ordenar por sucursal">Sucursal ${ord?'▲':'⇅'}</button></th>`;
 const bindOrd=()=>document.querySelectorAll('[data-ord]').forEach(b=>b.onclick=()=>{ord=!ord;render();const t=$('#reg')||$('#rege');t&&t.scrollIntoView({block:'start'})});
-const FF=['prod','otro','prv','fr','ff','t','cl','clo','ti','tio','pr','pe'];
-const getDr=()=>user?LS('dr_'+user.n):null,clrDr=()=>{if(user){LS('dr_'+user.n,null);IDB.del('df_'+user.n)}foto=null};
+const FF=['obs','prod','otro','otroC','prv','fr','ff','t','cl','clo','ti','tio','pr','pe'];
+const getDr=()=>user?LS('dr_'+user.n):null,clrDr=()=>{if(user){LS('dr_'+user.n,null);IDB.del('df_'+user.n)}FO={ext:null,int:null,rem:null}};
 const saveDr=()=>{if(!user||!$('#f'))return;const f={};FF.forEach(k=>{const e=$('#'+k);if(e)f[k]=e.value});LS('dr_'+user.n,{id:editId||'',f})};
-const pname=t=>{t=String(t||'').trim().replace(/\s+/g,' ');const k=norm(t),f=PROD.find(x=>norm(x)===k);return f||(t?t[0].toUpperCase()+t.slice(1).toLowerCase():t)};
+const pname=t=>pnameL(t,PROD);
 let msgT=0;const gm=()=>msg&&Date.now()-msgT<6000?msg:'';
-const FOTO_DESDE=(CONFIG.FOTO_DESDE||'').trim(),fotoReq=f=>!!FOTO_DESDE&&!!f&&f>=FOTO_DESDE;
+const FOTO_DESDE=(CONFIG.FOTO_DESDE||'2026-11-02').trim(),fotoReq=f=>!!FOTO_DESDE&&!!f&&f>=FOTO_DESDE;
 let ord=false,editA=null,kfa='',fpa='',lastFullA=0,errA='',sec=SSt.getItem('sec')||'c',editE=null,kfe='',lastFullE=0,errE='';
-let vw=LS('vw')||(innerWidth<760?'m':'d'),user=JSON.parse(SSt.getItem('u')||'null'),resp=SSt.getItem('r')||'',err='',editId=null,msg='',lastSync='',syncErr=false,syncMsg='',sf={from:'',to:''},flt={from:'',to:'',suc:'',grp:'mes'},kf='',foto=null,fotoErr='',upB=false,drvB=false,drvErr='';
+let vw=LS('vw')||(innerWidth<760?'m':'d'),user=JSON.parse(SSt.getItem('u')||'null'),resp=SSt.getItem('r')||'',err='',editId=null,msg='',lastSync='',syncErr=false,syncMsg='',sf={from:'',to:''},flt={from:'',to:'',suc:'',grp:'mes'},kf='',fotoErr='',upB=false,drvB=false,drvErr='';
 
 function calc(r){const d=r.f_faena?Math.round((new Date(r.f_recepcion)-new Date(r.f_faena))/864e5):null;
  const t=+r.temp,dif=r.peso_remito>0?(r.peso_real-r.peso_remito)/r.peso_remito*100:0;
@@ -125,14 +129,14 @@ function all(){const m=new Map();[...gc(),...(LS('q')||[])].forEach(r=>m.set(r.i
 const gc=()=>CACHE[ck()]||[],sc=v=>{CACHE[ck()]=v;IDB.set(ck(),v)};
 const mergeRows=(a,b)=>{const m=new Map(a.map(r=>[r.id,r]));b.forEach(r=>m.set(r.id,r));return[...m.values()]};
 async function pull(f,full,t='recepciones'){let out=[],o=0;for(;;){const g=await fetch(B+'/'+t+'?select=*&order=created_at.desc,id.asc&limit=1000&offset='+o+f,{headers:HD});if(!g.ok)throw new Error('Leer: '+g.status+' '+(await g.text()).slice(0,140));const a=await g.json();out=out.concat(a);if(!full||a.length<1000||out.length>=200000)break;o+=1000}return out}
-const busy=()=>user&&(user.role==='suc'||editId||editE||editA)&&(!!foto||!!getDr()||!!getDrE()||!!getDrA()||['t','pr','pe','ff','otro','clo','tio','prv','epv','eq','ekg','eob'].some(i=>{const e=document.getElementById(i);return e&&e.value}));
+const busy=()=>user&&(user.role==='suc'||editId||editE||editA)&&(hasFO()||!!getDr()||!!getDrE()||!!getDrA()||['t','pr','pe','ff','otro','clo','tio','prv','obs','epv','eq','ekg','eob'].some(i=>{const e=document.getElementById(i);return e&&e.value}));
 async function upFotos(){if(upB)return;const l=qf();if(!l.length)return;if(!(CONFIG.DRIVE_URL||'').trim())throw new Error('falta configurar DRIVE_URL en config.js');upB=true;
  try{for(const f of l){const img=await IDB.get('f_'+f.fid);
-  if(img){const r=await fetch(CONFIG.DRIVE_URL.trim(),{method:'POST',body:JSON.stringify({sucursal:f.suc,fecha:f.fecha,id:f.id,fid:f.fid,img:img.split(',')[1]})});
+  if(img){const r=await fetch(CONFIG.DRIVE_URL.trim(),{method:'POST',body:JSON.stringify({sucursal:f.suc,fecha:f.fecha,id:f.id,fid:f.fid,tipo:f.campo||'',img:img.split(',')[1]})});
    const tx=await r.text();let j;try{j=JSON.parse(tx)}catch(e){throw new Error('Drive no responde bien (revisá que el acceso sea "Cualquier persona")')}
    if(!j.ok)throw new Error('Drive: '+j.error);
    const q=LS('q')||[],rec=q.find(x=>x.id===f.id)||gc().find(x=>x.id===f.id);
-   if(rec){if(rec.foto_url&&rec.foto_url!==j.url)encFoto(rec.foto_url);LS('q',[...q.filter(x=>x.id!==f.id),{...rec,foto_url:j.url}])}}
+   if(rec){const col=f.campo?FCOL[f.campo]:'foto_url';if(rec[col]&&rec[col]!==j.url)encFoto(rec[col]);LS('q',[...q.filter(x=>x.id!==f.id),{...rec,[col]:j.url}])}}
   LS('qf',qf().filter(x=>x.fid!==f.fid));IDB.del('f_'+f.fid)}}finally{upB=false}}
 async function sync(force){if(force)render();if(!CONFIG.SUPABASE_URL||!navigator.onLine||!user){if(force||!busy())render();return}
  try{await upFotos();fotoErr=''}catch(e){fotoErr=(e&&e.message)||'sin respuesta'}
@@ -143,6 +147,7 @@ async function sync(force){if(force)render();if(!CONFIG.SUPABASE_URL||!navigator
   const full=Date.now()-lastFull>6e5||!gc().length,rows=await pull(f,full);sc(full?rows:mergeRows(gc(),rows));if(full)lastFull=Date.now();syncErr=false;syncMsg='';lastSync=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}catch(e){syncErr=true;syncMsg=(e&&e.message)||'sin respuesta'}
  try{await syncE();errE=''}catch(e){const m=(e&&e.message)||'sin respuesta';errE=/PGRST205|42P01|does not exist|Could not find/.test(m)?'falta crear la tabla "envasados" en Supabase':m}
  try{await syncA();errA=''}catch(e){const m=(e&&e.message)||'sin respuesta';errA=/PGRST205|42P01|does not exist|Could not find/.test(m)?'falta crear la tabla "achuras" en Supabase':m}
+ try{await syncP();errP=''}catch(e){const m=(e&&e.message)||'sin respuesta';errP=/PGRST205|42P01|does not exist|Could not find/.test(m)?'falta crear la tabla "productos" en Supabase':m}
  try{await upDrive();drvErr=''}catch(e){drvErr=(e&&e.message)||'sin respuesta'}
  if(force||!busy())render()}
 addEventListener('online',()=>sync());addEventListener('offline',()=>{if(user&&!busy())render()});document.addEventListener('visibilitychange',()=>!document.hidden&&user&&sync());setInterval(()=>user&&sync(),30000);
@@ -151,7 +156,7 @@ try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}ca
 
 function head(sub){const pend=(LS('q')||[]).length+(LS('qe')||[]).length+(LS('qa')||[]).length,pf=qf().length;
  return `<header><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj48cmVjdCB4PSI2IiB5PSI2IiB3aWR0aD0iMTA4IiBoZWlnaHQ9IjEwOCIgcng9IjI4IiBmaWxsPSIjZmZmIiBzdHJva2U9IiMxNDMwMWYiIHN0cm9rZS13aWR0aD0iOCIvPjx0ZXh0IHg9IjYwIiB5PSI1NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIEJsYWNrLEFyaWFsIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjI0IiBmaWxsPSIjMTQzMDFmIj5DQU1QTzwvdGV4dD48dGV4dCB4PSI2MCIgeT0iODQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCBCbGFjayxBcmlhbCIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzE0MzAxZiI+VkVSREU8L3RleHQ+PC9zdmc+Cg==" alt="Campo Verde"><div><small>CAMPO VERDE</small><h1>Control de Recepción de Carnicería</h1><div style="opacity:.85;font-size:14px;margin-top:4px">${sub}</div></div><span class="sp"></span>
- <button class="vt">${vl()}</button>${user?`${!navigator.onLine?'<span class="off">Sin conexión</span>':''}${pend?`<span class="off">${pend} pendiente(s) de sincronizar</span>`:''}${qdv().length?`<span class="off">🗂 ${qdv().length} cambio(s) pendiente(s) en Drive${drvErr&&navigator.onLine?' · '+esc(drvErr):''}</span>`:''}${pf?`<span class="off">📷 ${pf} foto(s) pendiente(s) de subir${fotoErr&&navigator.onLine?' · '+esc(fotoErr):''}</span>`:''}${CONFIG.SUPABASE_URL?(syncErr&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ No se pudo sincronizar: '+esc(syncMsg)+'</span>':(errE&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Envasados: '+esc(errE)+'</span>':'')+(errA&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Achuras: '+esc(errA)+'</span>':'')+(!pend&&!pf&&lastSync?`<span class="pill">☁ Guardado en la nube ${lastSync}</span>`:'')):'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Modo local: datos solo en este dispositivo</span>'}<span class="pill">CAR-0003 · Rev 2.0</span><button class="btn o s" id="out">Salir</button>`:''}</header>`}
+ <button class="vt">${vl()}</button>${user?`${!navigator.onLine?'<span class="off">Sin conexión</span>':''}${pend?`<span class="off">${pend} pendiente(s) de sincronizar</span>`:''}${qdv().length?`<span class="off">🗂 ${qdv().length} cambio(s) pendiente(s) en Drive${drvErr&&navigator.onLine?' · '+esc(drvErr):''}</span>`:''}${pf?`<span class="off">📷 ${pf} foto(s) pendiente(s) de subir${fotoErr&&navigator.onLine?' · '+esc(fotoErr):''}</span>`:''}${CONFIG.SUPABASE_URL?(syncErr&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ No se pudo sincronizar: '+esc(syncMsg)+'</span>':(errE&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Envasados: '+esc(errE)+'</span>':'')+(errA&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Achuras: '+esc(errA)+'</span>':'')+(errP&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Productos: '+esc(errP)+'</span>':'')+(!pend&&!pf&&lastSync?`<span class="pill">☁ Guardado en la nube ${lastSync}</span>`:'')):'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Modo local: datos solo en este dispositivo</span>'}<span class="pill">CAR-0003 · Rev 2.0</span><button class="btn o s" id="out">Salir</button>`:''}</header>`}
 
 const bv=()=>document.querySelectorAll('.vt').forEach(b=>b.onclick=()=>{vw=vw==='m'?'d':'m';LS('vw',vw);render()});
 const vl=()=>vw==='m'?'🖥 Ver en computadora':'📱 Ver en celular';
@@ -164,17 +169,17 @@ function render(){const a=$('#app');document.body.classList.toggle('mob',vw==='m
   $('#lf').onsubmit=e=>{e.preventDefault();const u=CONFIG.USERS[norm($('#lu').value)];
    if(u&&u.p.toLowerCase()===$('#lp').value.trim().toLowerCase()){user=u;err='';SSt.setItem('u',JSON.stringify(u));IDB.get(ck()).then(async v=>{CACHE[ck()]=v||[];CACHE[ckE()]=(await IDB.get(ckE()))||[];CACHE[ckA()]=(await IDB.get(ckA()))||[];lastFull=0;lastFullE=0;lastFullA=0;await restDr();sync(true)})}else{err='Usuario o contraseña incorrectos';render()}};return}
  a.innerHTML=user.role==='suc'?(sec==='e'?viewSucE():sec==='a'?viewSucA():viewSuc()):(sec==='e'?viewCalE():sec==='a'?viewCalA():viewCal());
- $('#out').onclick=()=>{['u','r'].forEach(k=>SSt.removeItem(k));user=null;resp='';foto=null;kf='';kfe='';kfa='';fpa='';editId=null;editE=null;editA=null;msg='';render()};
+ $('#out').onclick=()=>{['u','r'].forEach(k=>SSt.removeItem(k));user=null;resp='';FO={ext:null,int:null,rem:null};lastRem=null;kf='';kfe='';kfa='';fpa='';editId=null;editE=null;editA=null;msg='';render()};
  user.role==='suc'?(sec==='e'?bindSucE():sec==='a'?bindSucA():bindSuc()):(sec==='e'?bindCalE():sec==='a'?bindCalA():bindCal());bv();
  document.querySelectorAll('[data-sec]').forEach(b=>b.onclick=()=>{sec=b.dataset.sec;SSt.setItem('sec',sec);render();scrollTo(0,0)});}
 
 const tag=r=>`<span class="tag ${r.est}">${{ok:'Conforme',dev:'Desviación',nc:'No conforme'}[r.est]}</span>`;
 const yn=b=>`<span class="tag ${b?'nc':'no'}">${b?'SI':'NO'}</span>`;
 const ab=r=>`<button type="button" class="btn o s" data-ed="${r.id}">✏️ Editar</button>${user&&user.role==='cal'?` <button type="button" class="btn o s dl" data-dl="${r.id}">🗑 Borrar</button>`:''}`;
-const fcell=r=>qf().some(x=>x.id===r.id)?'<span class="tag dev">⏳ Pendiente</span>':r.foto_url?`<a href="${esc(r.foto_url)}" target="_blank" rel="noopener">📷 Ver foto</a>`:'<span class="hint">Sin foto</span>';
+const fcell=r=>{const pe=qf().filter(x=>x.id===r.id).map(x=>x.campo||'ext'),L=FT.map(([k,,l])=>pe.includes(k)?`<span class="tag dev">⏳ ${l}</span>`:r[FCOL[k]]?`<a href="${esc(r[FCOL[k]])}" target="_blank" rel="noopener">📷 ${l}</a>`:'').filter(Boolean);if(r.foto_url)L.unshift(`<a href="${esc(r.foto_url)}" target="_blank" rel="noopener">📷 Foto</a>`);return L.length?L.join(' '):'<span class="hint">Sin foto</span>'};
 const hcell=r=>{const h=hist(r);return h.length?`<details><summary>✏️ ${h.length} modificación${h.length>1?'es':''}</summary><div class="hl">${h.map(m=>`<div><b>${fdt(m.t)} · ${esc(m.u)}</b><br>${(m.c||[]).map(c=>`${esc(c[0])}: ${esc(c[1])} → ${esc(c[2])}`).join('<br>')}</div>`).join('')}</div></details>`:'<span class="tag no">Original</span>'};
-function rows(l,suc,act){if(suc)l=ordS(l);if(vw==='m')return l.length?l.map(r=>`<div class="rc">${suc?`<div style="margin-bottom:6px">${stag(r)}</div>`:''}<div class="rt"><b>${esc(r.producto)}</b>${tag(r)}</div><div class="rg"><span>Proveedor</span><b>${esc(r.proveedor||'-')}</b><span>Recepción</span><b>${fd(r.f_recepcion)}</b><span>Faena</span><b>${fd(r.f_faena)}</b><span>Temperatura</span><b>${n1(r.temp)} °C</b><span>Clasif. / Tipif.</span><b>${esc(r.clasif)} · ${esc(r.tipif)}</b><span>Peso remito / real</span><b>${n1(r.peso_remito)} / ${n1(r.peso_real)} Kg</b><span>Dif. peso</span><b>${n1(r.dif)}% ${yn(r.dp)}</b><span>Días desde faena</span><b>${r.dias===null?'-':r.dias}${r.d4?' ⚠':''}</b><span>Responsable</span><b>${esc(r.responsable)}</b><span>Foto</span><b>${fcell(r)}</b><span>Modificaciones</span><b>${hcell(r)}</b></div>${act?`<div class="ac">${ab(r)}</div>`:''}</div>`).join(''):'<p class="hint">Sin registros</p>';return `<div class="tw"><table><tr>${suc?thS():''}<th>Producto</th><th>Proveedor</th><th>Recepción</th><th>Faena</th><th>Temp °C</th><th>Clasif.</th><th>Tipif.</th><th>Peso remito</th><th>Peso real</th><th>Dif %</th><th>Días</th><th>Desvío T</th><th>DP&gt;3%</th><th>Responsable</th><th>Foto</th><th>Modificaciones</th>${act?'<th>Acciones</th>':''}</tr>
-${l.map(r=>`<tr>${suc?`<td>${stag(r)}</td>`:''}<td>${esc(r.producto)}</td><td>${esc(r.proveedor||'-')}</td><td>${fd(r.f_recepcion)}</td><td>${fd(r.f_faena)}</td><td>${n1(r.temp)}</td><td>${esc(r.clasif)}</td><td>${esc(r.tipif)}</td><td>${n1(r.peso_remito)}</td><td>${n1(r.peso_real)}</td><td>${n1(r.dif)}%</td><td>${r.dias===null?'-':`<span class="tag ${r.d4?'nc':'no'}">${r.dias}</span>`}</td><td>${tag(r)}</td><td>${yn(r.dp)}</td><td>${esc(r.responsable)}</td><td>${fcell(r)}</td><td>${hcell(r)}</td>${act?`<td>${ab(r)}</td>`:''}</tr>`).join('')||'<tr><td colspan="18">Sin registros</td></tr>'}</table></div>`}
+function rows(l,suc,act){if(suc)l=ordS(l);if(vw==='m')return l.length?l.map(r=>`<div class="rc">${suc?`<div style="margin-bottom:6px">${stag(r)}</div>`:''}<div class="rt"><b>${esc(r.producto)}</b>${tag(r)}</div><div class="rg"><span>Proveedor</span><b>${esc(r.proveedor||'-')}</b><span>Recepción</span><b>${fd(r.f_recepcion)}</b><span>Faena</span><b>${fd(r.f_faena)}</b><span>Temperatura</span><b>${n1(r.temp)} °C</b><span>Clasif. / Tipif.</span><b>${esc(r.clasif)} · ${esc(r.tipif)}</b><span>Peso remito / real</span><b>${n1(r.peso_remito)} / ${n1(r.peso_real)} Kg</b><span>Dif. peso</span><b>${n1(r.dif)}% ${yn(r.dp)}</b><span>Días desde faena</span><b>${r.dias===null?'-':r.dias}${r.d4?' ⚠':''}</b><span>Responsable</span><b>${esc(r.responsable)}</b>${r.observaciones?`<span>Observaciones</span><b>${esc(r.observaciones)}</b>`:''}<span>Fotos</span><b>${fcell(r)}</b><span>Modificaciones</span><b>${hcell(r)}</b></div>${act?`<div class="ac">${ab(r)}</div>`:''}</div>`).join(''):'<p class="hint">Sin registros</p>';return `<div class="tw"><table><tr>${suc?thS():''}<th>Producto</th><th>Proveedor</th><th>Recepción</th><th>Faena</th><th>Temp °C</th><th>Clasif.</th><th>Tipif.</th><th>Peso remito</th><th>Peso real</th><th>Dif %</th><th>Días</th><th>Desvío T</th><th>DP&gt;3%</th><th>Responsable</th><th>Observaciones</th><th>Fotos</th><th>Modificaciones</th>${act?'<th>Acciones</th>':''}</tr>
+${l.map(r=>`<tr>${suc?`<td>${stag(r)}</td>`:''}<td>${esc(r.producto)}</td><td>${esc(r.proveedor||'-')}</td><td>${fd(r.f_recepcion)}</td><td>${fd(r.f_faena)}</td><td>${n1(r.temp)}</td><td>${esc(r.clasif)}</td><td>${esc(r.tipif)}</td><td>${n1(r.peso_remito)}</td><td>${n1(r.peso_real)}</td><td>${n1(r.dif)}%</td><td>${r.dias===null?'-':`<span class="tag ${r.d4?'nc':'no'}">${r.dias}</span>`}</td><td>${tag(r)}</td><td>${yn(r.dp)}</td><td>${esc(r.responsable)}</td><td style="white-space:normal;min-width:160px">${esc(r.observaciones||'')}</td><td>${fcell(r)}</td><td>${hcell(r)}</td>${act?`<td>${ab(r)}</td>`:''}</tr>`).join('')||'<tr><td colspan="19">Sin registros</td></tr>'}</table></div>`}
 
 function formBlock(ed){const d=getDr(),D=d&&d.id===(ed?ed.id:'')?d.f:null,V=(k,def)=>D&&D[k]!=null?D[k]:def,
  pv=V('prod',ed?(PROD.includes(ed.producto)?ed.producto:'__o'):PROD[0]),oo=pv==='__o',otroV=V('otro',ed&&!PROD.includes(ed.producto)?ed.producto:''),
@@ -182,7 +187,7 @@ function formBlock(ed){const d=getDr(),D=d&&d.id===(ed?ed.id:'')?d.f:null,V=(k,d
  tiv=V('ti',ed?(TIP.includes(ed.tipif)?ed.tipif:'__o'):TIP[0]),ot=tiv==='__o',tioV=V('tio',ed&&!TIP.includes(ed.tipif)?ed.tipif:''),
  frV=V('fr',ed?ed.f_recepcion:today()),pfE=ed&&qf().some(x=>x.id===ed.id);if(d&&!D)LS('dr_'+user.n,null);
  return ` <div class="grid two"><form class="card" id="f"><h2>${ed?'Editar recepción'+(user.role==='cal'?' · '+esc(ed.sucursal):''):'Nueva recepción'}</h2>${user.role==='suc'&&gm()?`<div class="off" style="margin-bottom:12px">${gm()}</div>`:''}<div class="grid">
- <div><label>Producto *</label><select id="prod">${PROD.map(p=>`<option ${pv===p?'selected':''}>${p}</option>`).join('')}<option value="__o" ${oo?'selected':''}>Otro…</option></select><input id="otro" placeholder="Nombre del producto" value="${esc(otroV)}" style="display:${oo?'block':'none'};margin-top:6px"><div class="hint" id="oth" style="display:${oo?'block':'none'}">Mayúsculas, tildes y espacios no importan: "asado de tira" y "ASADO DE TIRA" se cuentan como el mismo producto.</div></div>
+ <div><label>Producto *</label><select id="prod">${PROD.map(p=>`<option ${pv===p?'selected':''}>${p}</option>`).join('')}<option value="__o" ${oo?'selected':''}>Otro…</option></select><input id="otroC" placeholder="Código / PLU (opcional)" inputmode="numeric" value="${esc(V('otroC',''))}" style="display:${oo?'block':'none'};margin-top:6px"><input id="otro" placeholder="Nombre del producto" value="${esc(otroV)}" style="display:${oo?'block':'none'};margin-top:6px"><div class="hint" id="oth" style="display:${oo?'block':'none'}">Si tiene código / PLU, escribilo (opcional). El producto queda guardado en la lista para las próximas cargas.</div></div>
  <div><label>Proveedor / frigorífico *</label><input id="prv" list="provsC" placeholder="Ej: Frigorífico X" value="${esc(V('prv',ed?ed.proveedor||'':''))}"><datalist id="provsC">${[...new Set(all().map(r=>r.proveedor).filter(Boolean))].sort().map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div>
  <div><label>Fecha de recepción *</label><input type="date" id="fr" value="${esc(frV)}" required></div>
  <div><label>Fecha de faena (opcional)</label><input type="date" id="ff" value="${esc(V('ff',ed&&ed.f_faena||''))}"><div class="hint">Dejar vacío si no figura en la etiqueta</div></div>
@@ -191,8 +196,9 @@ function formBlock(ed){const d=getDr(),D=d&&d.id===(ed?ed.id:'')?d.f:null,V=(k,d
  <div><label>Tipificación (L/N°) *</label><select id="ti">${TIP.map(o=>`<option ${tiv===o?'selected':''}>${o}</option>`).join('')}<option value="__o" ${ot?'selected':''}>Otro…</option></select><input id="tio" placeholder="Escribí la tipificación" value="${esc(tioV)}" style="display:${ot?'block':'none'};margin-top:6px"></div>
  <div><label>Peso remito (Kg) *</label><input type="number" step="any" inputmode="decimal" id="pr" value="${esc(V('pr',ed?ed.peso_remito:''))}" required></div>
  <div><label>Peso real (Kg) *</label><input type="number" step="any" inputmode="decimal" id="pe" value="${esc(V('pe',ed?ed.peso_real:''))}" required></div>
- <div style="grid-column:1/-1"><label>Foto de la mercadería <span id="fq">${user.role==='suc'&&fotoReq(frV)?'*':'(opcional)'}</span></label><div class="ph"><img id="fpv" alt="Vista previa" src="${foto||''}" style="display:${foto?'block':'none'}"><div><input type="file" id="fo" accept="image/*"><div class="hint" id="fh">${foto?'✔ Foto lista':ed&&(ed.foto_url||pfE)?'Este registro ya tiene foto. Subí otra solo si querés reemplazarla.':'Sacá la foto con la cámara o elegila de la galería.'}</div>${FOTO_DESDE?`<div class="hint">Obligatoria para recepciones desde el ${fd(FOTO_DESDE)}. Las recepciones anteriores se pueden cargar sin foto.</div>`:''}</div></div></div></div>
- <br><button class="btn">${ed?'💾 Guardar cambios':'+ Guardar registro'}</button> ${ed?'<button type="button" class="btn o" id="cx">Cancelar</button>':''}<div class="err" id="fe"></div>${user.role==='suc'?'<div class="hint" style="margin-top:10px">⚠ Revisá bien antes de guardar: una vez guardado, solo Calidad puede corregirlo.</div>':''}</form>
+ <div style="grid-column:1/-1"><label>Fotos <span id="fq">${user.role==='suc'&&fotoReq(frV)?'* (las 3 son obligatorias)':'(opcionales)'}</span></label><div class="fts">${FT.map(([k,l])=>{const has=ed&&(ed[FCOL[k]]||(k==='ext'&&ed.foto_url)||qf().some(x=>x.id===ed.id&&(x.campo||'ext')===k));return `<div class="ftb"><b>${l}</b><img id="fpv_${k}" alt="" src="${FO[k]||''}" style="display:${FO[k]?'block':'none'}"><input type="file" id="fo_${k}" accept="image/*"><div class="hint" id="fh_${k}">${FO[k]?'✔ Foto lista':has?'Ya tiene foto. Subí otra solo para reemplazarla.':'Sacá la foto o elegila de la galería.'}</div>${k==='rem'&&!ed&&lastRem?`<label class="chk"><input type="checkbox" id="fo_same" ${FO.rem&&FO.rem===lastRem?'checked':''}> Usar la misma foto de remito de la carga anterior</label>`:''}</div>`}).join('')}</div>${FOTO_DESDE?`<div class="hint">Obligatorias para recepciones desde el ${fd(FOTO_DESDE)}.</div>`:''}</div>
+ <div style="grid-column:1/-1"><label>Observaciones (solo si detectás un desvío de calidad)</label><textarea id="obs" placeholder="Ej: mercadería golpeada, grasa amarilla, carne de color oscuro, exceso de grasa…">${esc(V('obs',ed?ed.observaciones||'':''))}</textarea><div class="hint">Completar solo si la mercadería se recibe en mal estado: golpeada, con grasa amarilla, color oscuro de la carne, exceso de grasa u otros signos de deterioro.</div></div></div>
+ <div id="alC"></div><br><button class="btn">${ed?'💾 Guardar cambios':'+ Guardar registro'}</button> ${ed?'<button type="button" class="btn o" id="cx">Cancelar</button>':''}<div class="err" id="fe"></div>${user.role==='suc'?'<div class="hint" style="margin-top:10px">⚠ Revisá bien antes de guardar: una vez guardado, solo Calidad puede corregirlo.</div>':''}</form>
  <div class="card auto"><h2>Análisis automático</h2><div><span>Desvío T</span><b id="a1">-</b></div><div><span>Días desde faena</span><b id="a2">-</b></div><div><span>Diferencia de peso</span><b id="a3">-</b></div><div><span>Diferencia aceptada (3%)</span><b id="a4">-</b></div><div><span>DP &gt; 3%</span><b id="a5">-</b></div>
  <div class="hint" style="margin-top:12px"><span class="dot" style="background:var(--ok)"></span>T ≤ 7 °C Conforme<br><span class="dot" style="background:var(--dv)"></span>7 &lt; T ≤ 10 °C Desviación<br><span class="dot" style="background:var(--nc)"></span>T &gt; 10 °C No conforme<br>Más de 4 días desde faena → No conformidad</div></div></div>
 `}
@@ -207,29 +213,35 @@ const bindEd=()=>document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=
 function bindForm(){const p=$('#prod'),g=id=>$('#'+id).value;
  ['input','change'].forEach(ev=>$('#f').addEventListener(ev,e=>{if(e.target.id!=='fo')saveDr()}));
  if($('#cx'))$('#cx').onclick=()=>{editId=null;clrDr();render()};
- p.onchange=()=>{$('#otro').style.display=$('#oth').style.display=p.value==='__o'?'block':'none'};
+ p.onchange=()=>{$('#otro').style.display=$('#otroC').style.display=$('#oth').style.display=p.value==='__o'?'block':'none'};
  [['cl','clo'],['ti','tio']].forEach(([s,i])=>$('#'+s).onchange=()=>$('#'+i).style.display=$('#'+s).value==='__o'?'block':'none');
- $('#fo').onchange=async e=>{const fl=e.target.files[0];if(!fl)return;$('#fh').textContent='Procesando foto…';try{foto=await comprimir(fl);saveDr();IDB.set('df_'+user.n,{id:editId||'',img:foto});$('#fpv').src=foto;$('#fpv').style.display='block';$('#fh').textContent='✔ Foto lista ('+Math.round(foto.length*.75/1024)+' KB)'}catch(x){foto=null;$('#fh').textContent='⚠ '+x.message}};
+ const svF=()=>{saveDr();IDB.set('df_'+user.n,{id:editId||'',fo:FO})},shF=k=>{$('#fpv_'+k).src=FO[k]||'';$('#fpv_'+k).style.display=FO[k]?'block':'none'};
+ FT.forEach(([k])=>{$('#fo_'+k).onchange=async e=>{const fl=e.target.files[0];if(!fl)return;$('#fh_'+k).textContent='Procesando foto…';try{FO[k]=await comprimir(fl);if(k==='rem'&&$('#fo_same'))$('#fo_same').checked=false;svF();shF(k);$('#fh_'+k).textContent='✔ Foto lista ('+Math.round(FO[k].length*.75/1024)+' KB)'}catch(x){FO[k]=null;$('#fh_'+k).textContent='⚠ '+x.message}}});
+ if($('#fo_same'))$('#fo_same').onchange=e=>{FO.rem=e.target.checked?lastRem:null;svF();shF('rem');$('#fh_rem').textContent=e.target.checked?'✔ Se usa el remito de la carga anterior':'Sacá la foto o elegila de la galería.'};
  $('#resp').oninput=e=>{resp=e.target.value;SSt.setItem('r',resp)};
  const live=()=>{const t=+g('t'),pr=+g('pr'),pe=+g('pe'),ff=g('ff'),fr=g('fr');
   if(g('t')!==''){const d=Math.max(0,t-7);$('#a1').innerHTML=tag({est:t<=7?'ok':t<=10?'dev':'nc'})+' '+(t>7?'+'+n1(d)+' °C':'')}else $('#a1').textContent='-';
   if(ff&&fr){const d=Math.round((new Date(fr)-new Date(ff))/864e5);$('#a2').innerHTML=`<span class="tag ${d>4?'nc':'no'}">${d}</span>`}else $('#a2').textContent='-';
-  if(pr>0&&g('pe')!==''){const df=pe-pr;$('#a3').textContent=n1(df)+' Kg ('+n1(df/pr*100)+'%)';$('#a4').textContent='±'+n1(pr*.03)+' Kg';$('#a5').innerHTML=yn(Math.abs(df/pr)>.03)}else['a3','a4','a5'].forEach(i=>$('#'+i).textContent='-')};
+  if(pr>0&&g('pe')!==''){const df=pe-pr;$('#a3').textContent=n1(df)+' Kg ('+n1(df/pr*100)+'%)';$('#a4').textContent='±'+n1(pr*.03)+' Kg';$('#a5').innerHTML=yn(Math.abs(df/pr)>.03)}else['a3','a4','a5'].forEach(i=>$('#'+i).textContent='-');
+  $('#alC').innerHTML=user.role==='suc'?alerta(desvC(g('t'),g('pr'),g('pe'))):''};
  ['t','pr','pe','ff','fr'].forEach(i=>$('#'+i).oninput=live);
- $('#fr').addEventListener('input',()=>{$('#fq').textContent=user.role==='suc'&&fotoReq(g('fr'))?'*':'(opcional)'});
+ $('#fr').addEventListener('input',()=>{$('#fq').textContent=user.role==='suc'&&fotoReq(g('fr'))?'* (las 3 son obligatorias)':'(opcionales)'});
  live();
- $('#f').onsubmit=async e=>{e.preventDefault();resp=$('#resp').value.trim();SSt.setItem('r',resp);const prod=p.value==='__o'?pname(g('otro')):p.value,cl=g('cl')==='__o'?g('clo').trim():g('cl'),ti=g('ti')==='__o'?g('tio').trim():g('ti');
+ $('#f').onsubmit=async e=>{e.preventDefault();resp=$('#resp').value.trim();SSt.setItem('r',resp);const prod=p.value==='__o'?otroProd('c',g('otro'),g('otroC')):p.value,cl=g('cl')==='__o'?g('clo').trim():g('cl'),ti=g('ti')==='__o'?g('tio').trim():g('ti');
   if(!resp||!prod){$('#fe').textContent=user.role==='cal'?'Completá tu nombre (quién modifica) y el producto':'Completá el responsable y el producto';return}
   const prov=(x=>all().map(r=>r.proveedor).find(y=>y&&norm(y)===norm(x))||x)(clean(g('prv')));
   if(!prov&&!(editId&&!(all().find(x=>x.id===editId)||{}).proveedor)){$('#fe').textContent='Completá el proveedor';return}
   if(!cl||!ti){$('#fe').textContent='Completá la clasificación y la tipificación (si elegiste "Otro…", escribila)';return}
   if(g('ff')&&g('ff')>g('fr')){$('#fe').textContent='La faena no puede ser posterior a la recepción';return}
   const prev=editId?all().find(x=>x.id===editId):null,pfP=prev&&qf().some(x=>x.id===prev.id);
-  if(user.role==='suc'&&fotoReq(g('fr'))&&!foto&&!(prev&&(prev.foto_url||pfP))){$('#fe').textContent='Falta la foto de la mercadería (obligatoria desde el '+fd(FOTO_DESDE)+')';return}
-  const id=editId||uid(),r={id,sucursal:prev?prev.sucursal:user.n,responsable:prev?prev.responsable:resp,producto:prod,proveedor:prov||null,f_recepcion:g('fr'),f_faena:g('ff')||null,temp:+g('t'),clasif:cl,tipif:ti,peso_remito:+g('pr'),peso_real:+g('pe'),created_at:(prev&&prev.created_at)||new Date().toISOString(),foto_url:prev?prev.foto_url||null:null,historial:prev?hist(prev):[]};
-  if(prev){const ch=difs(prev,r);if(foto)ch.push(['Foto',prev.foto_url||pfP?'anterior':'sin foto','reemplazada']);if(!ch.length){msg='No hubo cambios para guardar';msgT=Date.now();editId=null;clrDr();render();return}r.historial=[...hist(prev),{u:user.role==='cal'?resp+' (Calidad)':resp,t:new Date().toISOString(),c:ch}]}
-  if(foto){const fid=uid();await IDB.set('f_'+fid,foto);qf().filter(x=>x.id===id).forEach(x=>IDB.del('f_'+x.fid));LS('qf',[...qf().filter(x=>x.id!==id),{id,fid,suc:r.sucursal,fecha:r.f_recepcion}]);foto=null}
-  encReg(r.sucursal,r.f_recepcion,prev&&prev.f_recepcion);LS('q',[...(LS('q')||[]).filter(x=>x.id!==r.id),r]);msg=editId?'Cambios guardados':'Registro guardado';msgT=Date.now();editId=null;clrDr();sync(true)}}
+  if(user.role==='suc'&&fotoReq(g('fr'))){const fl=FT.filter(([k])=>!FO[k]&&!(prev&&(prev[FCOL[k]]||qf().some(x=>x.id===prev.id&&(x.campo||'ext')===k)))).map(([,l])=>l.replace('Foto de la ','').replace('Foto del ',''));if(fl.length){$('#fe').textContent='Faltan fotos: '+fl.join(', ')+' (obligatorias desde el '+fd(FOTO_DESDE)+')';return}}
+  const id=editId||uid(),r={id,sucursal:prev?prev.sucursal:user.n,responsable:prev?prev.responsable:resp,producto:prod,proveedor:prov||null,f_recepcion:g('fr'),f_faena:g('ff')||null,temp:+g('t'),clasif:cl,tipif:ti,peso_remito:+g('pr'),peso_real:+g('pe'),created_at:(prev&&prev.created_at)||new Date().toISOString(),foto_url:prev?prev.foto_url||null:null,foto_ext:prev?prev.foto_ext||null:null,foto_int:prev?prev.foto_int||null:null,foto_rem:prev?prev.foto_rem||null:null,observaciones:clean(g('obs'))||null,historial:prev?hist(prev):[]};
+  if(prev){const ch=difs(prev,r);FT.forEach(([k,l])=>{if(FO[k])ch.push([l,prev[FCOL[k]]||(k==='ext'&&prev.foto_url)?'anterior':'sin foto','nueva'])});if(!ch.length){msg='No hubo cambios para guardar';msgT=Date.now();editId=null;clrDr();render();return}r.historial=[...hist(prev),{u:user.role==='cal'?resp+' (Calidad)':resp,t:new Date().toISOString(),c:ch}]}
+  for(const [k] of FT){if(!FO[k])continue;const fid=uid();await IDB.set('f_'+fid,FO[k]);qf().filter(x=>x.id===id&&(x.campo||'ext')===k).forEach(x=>IDB.del('f_'+x.fid));LS('qf',[...qf().filter(x=>!(x.id===id&&(x.campo||'ext')===k)),{id,fid,suc:r.sucursal,fecha:r.f_recepcion,campo:k}])}
+  if(FO.rem&&!prev){lastRem=FO.rem;IDB.set('lr_'+user.n,{d:today(),img:FO.rem})}
+  const dv=user.role==='suc'?desvC(r.temp,r.peso_remito,r.peso_real):[];
+  encReg(r.sucursal,r.f_recepcion,prev&&prev.f_recepcion);LS('q',[...(LS('q')||[]).filter(x=>x.id!==r.id),r]);msg=editId?'Cambios guardados':'Registro guardado'+(dv.length?' · ⚠ Recordá dar aviso al área de Calidad':'');msgT=Date.now();editId=null;clrDr();sync(true)}}
+function desvC(t,pr,pe){const l=[];if(t!==''&&t!=null&&+t>7)l.push(`Temperatura de ${n1(+t)} °C: supera los 7 °C. <b>Dar aviso al área de Calidad.</b>`);if(+pr>0&&pe!==''&&pe!=null&&Math.abs((+pe-+pr)/+pr)>.03)l.push(`Diferencia de peso de ${n1((+pe-+pr)/+pr*100)} %: supera el 3 %. <b>Dar aviso al área de Calidad.</b>`);if(l.length)l.push('Si además la mercadería está en mal estado, describilo en Observaciones.');return l}
 function comprimir(file){return new Promise((ok,ko)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const M=1600,k=Math.min(1,M/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);ok(c.toDataURL('image/jpeg',.72))};im.onerror=()=>{URL.revokeObjectURL(u);ko(new Error('No se pudo leer la imagen. Probá de nuevo.'))};im.src=u})}
 
 // ---------- Calidad ----------
@@ -246,9 +258,9 @@ function stats(l){const c={ok:0,dev:0,nc:0};l.forEach(r=>c[r.est]++);const n=l.l
 function donut(c){const t=c.ok+c.dev+c.nc||1,R=80,C=2*Math.PI*R;let o=0;
  return `<svg viewBox="0 0 200 200" width="210">`+[[c.ok,'#3d9a5f'],[c.dev,'#ebb433'],[c.nc,'#d9423e']].map(([v,col])=>{const l=v/t*C,s=`<circle cx="100" cy="100" r="${R}" fill="none" stroke="${col}" stroke-width="34" stroke-dasharray="${l} ${C-l}" stroke-dashoffset="${-o}" transform="rotate(-90 100 100)"/>`;o+=l;return s}).join('')+`<text x="100" y="108" text-anchor="middle" font-size="26" font-weight="700" fill="#17251c">${c.ok+c.dev+c.nc}</text></svg>`}
 
-const dk=d=>`<td style="font-weight:700;color:${d<-0.05?'#a1241f':d>0.05?'#1d6b3a':'inherit'}">${d>0.05?'+':''}${n1(d)}</td>`;
+const dk=(real,rem)=>{const p=rem>0?(real-rem)/rem*100:0;return `<td style="font-weight:700;color:${Math.abs(p)>3?'#a1241f':'#1d6b3a'}">${p>0?'+':''}${n1(p)} %</td>`};
 function ptab(s){const e=Object.entries(s.prod),t=e.reduce((a,[,o])=>({n:a.n+o.n,rem:a.rem+o.rem,real:a.real+o.real}),{n:0,rem:0,real:0});
- return `<div class="tw"><table><tr><th>Producto</th><th>Cant.</th><th>Kg remito</th><th>Kg real</th><th>Dif. kg</th><th title="Cantidad promedio de recepciones por semana">Cant. prom.</th></tr>${e.map(([k,o])=>`<tr><td>${esc(k)}</td><td>${o.n}</td><td>${n1(o.rem)}</td><td>${n1(o.real)}</td>${dk(o.real-o.rem)}<td>${n1(o.n/s.span)}</td></tr>`).join('')||'<tr><td colspan="6">Sin datos</td></tr>'}${e.length?`<tr style="font-weight:700;background:#f1f6f2"><td>Total</td><td>${t.n}</td><td>${n1(t.rem)}</td><td>${n1(t.real)}</td>${dk(t.real-t.rem)}<td>${n1(t.n/s.span)}</td></tr>`:''}</table></div>`}
+ return `<div class="tw"><table><tr><th>Producto</th><th>Cant.</th><th>Kg remito</th><th>Kg real</th><th title="(Kg real − Kg remito) / Kg remito · ideal dentro de ±3 %">Dif. % (±3 %)</th><th title="Cantidad promedio de recepciones por semana">Cant. prom.</th></tr>${e.map(([k,o])=>`<tr><td>${esc(k)}</td><td>${o.n}</td><td>${n1(o.rem)}</td><td>${n1(o.real)}</td>${dk(o.real,o.rem)}<td>${n1(o.n/s.span)}</td></tr>`).join('')||'<tr><td colspan="6">Sin datos</td></tr>'}${e.length?`<tr style="font-weight:700;background:#f1f6f2"><td>Total</td><td>${t.n}</td><td>${n1(t.rem)}</td><td>${n1(t.real)}</td>${dk(t.real,t.rem)}<td>${n1(t.n/s.span)}</td></tr>`:''}</table></div>`}
 function sto(){const n=all().length+allE().length+allA().length,mb=n*0.4/1024,p=mb/500*100;return `<div class="card"><h2>Espacio de almacenamiento</h2><div style="background:#e8efe9;border-radius:99px;height:12px;overflow:hidden"><div style="width:${Math.min(100,Math.max(p,0.5))}%;height:100%;background:${p>=80?'var(--nc)':p>=60?'var(--dv)':'var(--ok)'}"></div></div><div class="hint" style="margin-top:8px">${n.toLocaleString('es-AR')} registros guardados · uso estimado ${mb<10?mb.toFixed(2):Math.round(mb)} MB de 500 MB (${p<1?'menos del 1':Math.round(p)}%) del plan gratuito. ${p>=80?'⚠ Descargá el Excel de cada sucursal y archivá los registros antiguos.':'Hay espacio de sobra: no hace falta borrar registros.'}</div></div>`}
 const KF={ok:['T conforme (≤ 7 °C)','ok',r=>r.est==='ok'],dev:['T en desviación (7 a 10 °C)','dev',r=>r.est==='dev'],nc:['T no conforme (> 10 °C)','nc',r=>r.est==='nc'],dp:['Desvío de peso > 3 %','nc',r=>r.dp],d4:['Más de 4 días desde faena','nc',r=>r.d4]};
 function viewCal(){const l=filt(),s=stats(l),f1=v=>n1(v)+'%',N=l.length,pc=v=>n1(v/(N||1)*100)+'%',lt=kf&&KF[kf]?l.filter(KF[kf][2]):l,sn=flt.suc?'Sucursal '+esc(flt.suc):'Todas las sucursales';
@@ -283,37 +295,39 @@ function bindCal(){bindFilt();bindOrd();
 
  bindEd();if(editId)bindForm();
  document.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>{const id=b.dataset.dl,r=all().find(x=>x.id===id);if(!r)return;
-  if(!confirm(`¿Borrar definitivamente este registro?\n\n${r.sucursal} · ${r.producto} · ${fd(r.f_recepcion)} · ${n1(r.temp)} °C · resp. ${r.responsable}${r.foto_url?'\nLa foto también se borra del Drive (queda 30 días en la papelera de Drive).':''}\n\nNo se puede deshacer.`))return;
-  encFoto(r.foto_url);encReg(r.sucursal,r.f_recepcion);LS('q',(LS('q')||[]).filter(x=>x.id!==id));qf().filter(x=>x.id===id).forEach(x=>IDB.del('f_'+x.fid));LS('qf',qf().filter(x=>x.id!==id));sc(gc().filter(x=>x.id!==id));LS('qd',[...(LS('qd')||[]),id]);if(editId===id)editId=null;msg='Registro borrado';msgT=Date.now();sync(true)});
+  if(!confirm(`¿Borrar definitivamente este registro?\n\n${r.sucursal} · ${r.producto} · ${fd(r.f_recepcion)} · ${n1(r.temp)} °C · resp. ${r.responsable}${(r.foto_url||r.foto_ext||r.foto_int||r.foto_rem)?'\nLas fotos también se borran del Drive (queda 30 días en la papelera de Drive).':''}\n\nNo se puede deshacer.`))return;
+  ['foto_url','foto_ext','foto_int','foto_rem'].forEach(c=>encFoto(r[c]));encReg(r.sucursal,r.f_recepcion);LS('q',(LS('q')||[]).filter(x=>x.id!==id));qf().filter(x=>x.id===id).forEach(x=>IDB.del('f_'+x.fid));LS('qf',qf().filter(x=>x.id!==id));sc(gc().filter(x=>x.id!==id));LS('qd',[...(LS('qd')||[]),id]);if(editId===id)editId=null;msg='Registro borrado';msgT=Date.now();sync(true)});
  document.querySelectorAll('[data-kf]').forEach(c=>c.onclick=c.onkeydown=e=>{if(e.type==='keydown'&&e.key!=='Enter')return;const k=c.dataset.kf;kf=kf===k?'':k;render();const t=$('#reg');if(kf&&t)t.scrollIntoView({behavior:'smooth',block:'start'})});
  if($('#kx'))$('#kx').onclick=()=>{kf='';render()}}
 
 function excel(l,suc,from,to){if(typeof XLSX==='undefined'){alert('Para descargar el Excel hace falta conexión la primera vez (se guarda para usarlo después sin señal).');return}const s=stats(l),mes=from?fd(from)+' al '+fd(to||today()):'Todos los períodos';
- const H=['Producto','Fecha de recepción','Fecha de elaboración','Temperatura (°C) ideal ≤ 7°C','Clasificación','Tipificación (L/N°)','Peso (Kg)','Peso real (Kg)','Dif. peso (%)','Días faena','Desvío T','DP > 3%','Sucursal','Responsable','Foto (link)','Modificaciones','Proveedor'];
+ const H=['Producto','Fecha de recepción','Fecha de elaboración','Temperatura (°C) ideal ≤ 7°C','Clasificación','Tipificación (L/N°)','Peso (Kg)','Peso real (Kg)','Dif. peso (%)','Días faena','Desvío T','DP > 3%','Sucursal','Responsable','Foto (link)','Modificaciones','Proveedor','Foto externa','Foto interna','Foto remito','Observaciones'];
  const E=(n)=>Array(n).fill('');const top=[['CAMPO VERDE',...E(8),'CONTROL DE RECEPCIÓN DE CARNICERÍA',...E(3),'CAR – 0003',''],[...E(14)],[...E(14)]];
  top[0]=['CAMPO VERDE','','','CONTROL DE RECEPCIÓN DE CARNICERÍA',...E(8),'CAR – 0003',''];top[1][12]='Rev: 2.0';top[2][12]='MES: '+mes;
  const ws=XLSX.utils.aoa_to_sheet([...top,['Sucursal','',suc||'Todas','','','Responsable','','Varios',...E(6)],H,
-  ...l.map(r=>[r.producto,fd(r.f_recepcion),fd(r.f_faena),+r.temp,r.clasif,r.tipif,+r.peso_remito,+r.peso_real,+r.dif.toFixed(2),r.dias??'',{ok:'Conforme',dev:'Desviación',nc:'No conforme'}[r.est],r.dp?'SI':'NO',r.sucursal,r.responsable,r.foto_url||'',hist(r).map(m=>fdt(m.t)+' '+m.u+': '+(m.c||[]).map(c=>c[0]+' '+c[1]+' → '+c[2]).join('; ')).join(' | '),r.proveedor||''])]);
+  ...l.map(r=>[r.producto,fd(r.f_recepcion),fd(r.f_faena),+r.temp,r.clasif,r.tipif,+r.peso_remito,+r.peso_real,+r.dif.toFixed(2),r.dias??'',{ok:'Conforme',dev:'Desviación',nc:'No conforme'}[r.est],r.dp?'SI':'NO',r.sucursal,r.responsable,r.foto_url||'',hist(r).map(m=>fdt(m.t)+' '+m.u+': '+(m.c||[]).map(c=>c[0]+' '+c[1]+' → '+c[2]).join('; ')).join(' | '),r.proveedor||'',r.foto_ext||'',r.foto_int||'',r.foto_rem||'',r.observaciones||''])]);
  ws['!merges']=[{s:{r:0,c:0},e:{r:2,c:2}},{s:{r:0,c:3},e:{r:2,c:11}},{s:{r:0,c:12},e:{r:0,c:13}},{s:{r:1,c:12},e:{r:1,c:13}},{s:{r:2,c:12},e:{r:2,c:13}},{s:{r:3,c:0},e:{r:3,c:1}},{s:{r:3,c:2},e:{r:3,c:4}},{s:{r:3,c:5},e:{r:3,c:6}},{s:{r:3,c:7},e:{r:3,c:13}}];
- ws['!cols']=[16,16,18,18,20,20,12,14,12,10,14,10,16,20,40,60,22].map(w=>({wch:w}));
+ ws['!cols']=[16,16,18,18,20,20,12,14,12,10,14,10,16,20,40,60,22,40,40,40,40].map(w=>({wch:w}));
  const f1=v=>+v.toFixed(1),R=[['RESUMEN · '+mes],['Sucursal',suc||'Todas'],[],['Indicador','Valor','Meta'],['Temperatura promedio (°C)',f1(s.avg),'≤ 7'],['% de entregas con T conforme (≤ 7 °C)',f1(s.p('ok')),'≥ 60'],['% de entregas con T en desviación (7 a 10 °C)',f1(s.p('dev')),'≤ 35'],['% de entregas con T no conforme (> 10 °C)',f1(s.p('nc')),'≤ 5'],['% de entregas con desvío de peso > 3%',f1(s.dp/(l.length||1)*100),'0'],['% de entregas con más de 4 días desde faena',f1(s.d4/(l.length||1)*100),'0'],['Total de recepciones',l.length,''],[],
-  ['Producto','Cantidad','Kg remito','Kg real','Dif. kg'],...Object.entries(s.prod).map(([k,o])=>[k,o.n,f1(o.rem),f1(o.real),f1(o.real-o.rem)]),[],['Período ('+(flt.grp==='sem'?'semanal':'mensual')+')','Producto','Cantidad','Kg remito','Kg real'],...s.per.map(o=>[o.k,o.prod,o.n,f1(o.rem),f1(o.real)])];
+  ['Producto','Cantidad','Kg remito','Kg real','Dif. % (ideal ±3 %)'],...Object.entries(s.prod).map(([k,o])=>[k,o.n,f1(o.rem),f1(o.real),o.rem?f1((o.real-o.rem)/o.rem*100):0]),[],['Período ('+(flt.grp==='sem'?'semanal':'mensual')+')','Producto','Cantidad','Kg remito','Kg real'],...s.per.map(o=>[o.k,o.prod,o.n,f1(o.rem),f1(o.real)])];
  const w2=XLSX.utils.aoa_to_sheet(R);w2['!cols']=[46,16,14,14,14].map(w=>({wch:w}));
  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Registros');XLSX.utils.book_append_sheet(wb,w2,'Resumen');excelE(wb,filtE(),suc,mes);excelA(wb,suc,mes);
  XLSX.writeFile(wb,`CAR-0003_${(suc||'Todas').replace(/\s/g,'')}_${today()}.xlsx`)}
 // ---------- Envasados al vacío ----------
-const PRODE=['Colita de cuadril','Entraña','Bife de chorizo','Vacío'];
+const PRODE=['03549 - SWIFT COLITA CUADRIL ENVASADA','03553 - SWIFT ENTRAÑA ENVASADA','03560 - SWIFT VACIO ENVASADO X PIEZA'],PRODE_B=[...PRODE];
 const ECOLS=['id','sucursal','responsable','producto','proveedor','f_recepcion','f_vencimiento','cantidad','peso','observaciones','created_at','historial'];
 const fullE=r=>{const o={};ECOLS.forEach(k=>o[k]=r[k]===undefined?(k==='historial'?[]:null):r[k]);return o};
 const ckE=()=>ck()+'_e',gcE=()=>CACHE[ckE()]||[],scE=v=>{CACHE[ckE()]=v;IDB.set(ckE(),v)};
 const clean=t=>String(t||'').trim().replace(/\s+/g,' ');
-const pnameL=(t,L)=>{t=clean(t);const k=norm(t),f=L.find(x=>norm(x)===k);return f||(t?t[0].toUpperCase()+t.slice(1).toLowerCase():t)};
+const sinCod=x=>String(x||'').replace(/^\s*\d+\s*-\s*/,'');
+const ALIAS={colitadecuadril:'03549 - SWIFT COLITA CUADRIL ENVASADA',colitacuadril:'03549 - SWIFT COLITA CUADRIL ENVASADA',entrana:'03553 - SWIFT ENTRAÑA ENVASADA',vacio:'03560 - SWIFT VACIO ENVASADO X PIEZA'};
+const pnameL=(t,L)=>{t=clean(t);const k=norm(sinCod(t)),f=L.find(x=>norm(x)===norm(t)||norm(sinCod(x))===k)||(ALIAS[k]&&L.includes(ALIAS[k])?ALIAS[k]:null);return f||(t?t[0].toUpperCase()+t.slice(1).toLowerCase():t)};
 const CAMPOSE=[['producto','Producto'],['proveedor','Proveedor'],['f_recepcion','Fecha de recepción',fd],['f_vencimiento','Fecha de vencimiento',fd],['cantidad','Cantidad (u)',n1],['peso','Peso (Kg)',n1],['observaciones','Observaciones']];
 const difsE=(a,b)=>CAMPOSE.filter(([k,,f])=>f===n1?+a[k]!==+b[k]:String(a[k]??'')!==String(b[k]??'')).map(([k,l,f])=>[l,f?f(a[k]):String(a[k]||'-'),f?f(b[k]):String(b[k]||'-')]);
-const EFF=['ep','epo','epv','efr','efv','eq','ekg','eob'];
+const EFF=['ep','epo','epoC','epv','efr','efv','eq','ekg','eob'];
 const getDrE=()=>user?LS('dre_'+user.n):null,clrDrE=()=>{if(user)LS('dre_'+user.n,null)};
 const saveDrE=()=>{if(!user||!$('#fE'))return;const f={};EFF.forEach(k=>{const e=$('#'+k);if(e)f[k]=e.value});LS('dre_'+user.n,{id:editE||'',f})};
-function calcE(r){const d=r.f_vencimiento&&r.f_recepcion?Math.round((new Date(r.f_vencimiento)-new Date(r.f_recepcion))/864e5):null;return{...r,dv:d,v15:d!==null&&d<15}}
+function calcE(r){r={...r,producto:pnameL(r.producto,PRODE)};const d=r.f_vencimiento&&r.f_recepcion?Math.round((new Date(r.f_vencimiento)-new Date(r.f_recepcion))/864e5):null;return{...r,dv:d,v15:d!==null&&d<15}}
 function allE(){const m=new Map();[...gcE(),...(LS('qe')||[])].forEach(r=>m.set(r.id,r));const dl=LS('qde')||[];let l=[...m.values()].filter(r=>!dl.includes(r.id));if(user.role==='suc')l=l.filter(r=>r.sucursal===user.n);
  return l.map(calcE).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))}
 const filtE=()=>allE().filter(r=>(!flt.from||r.f_recepcion>=flt.from)&&(!flt.to||r.f_recepcion<=flt.to)&&(!flt.suc||r.sucursal===flt.suc));
@@ -331,24 +345,24 @@ ${l.map(r=>`<tr class="${r.v15?'bad':''}">${suc?`<td>${stag(r)}</td>`:''}<td>${e
 function formE(ed){const d=getDrE(),D=d&&d.id===(ed?ed.id:'')?d.f:null,V=(k,def)=>D&&D[k]!=null?D[k]:def;if(d&&!D)LS('dre_'+user.n,null);
  const pv=V('ep',ed?(PRODE.includes(ed.producto)?ed.producto:'__o'):PRODE[0]),oo=pv==='__o',provs=[...new Set(allE().map(r=>r.proveedor).filter(Boolean))].sort();
  return `<div class="grid two"><form class="card" id="fE"><h2>${ed?'Editar envasado'+(user.role==='cal'?' · '+esc(ed.sucursal):''):'Nueva recepción · Envasado al vacío'}</h2>${user.role==='suc'&&gm()?`<div class="off" style="margin-bottom:12px">${gm()}</div>`:''}<div class="grid">
- <div><label>Producto *</label><select id="ep">${PRODE.map(p=>`<option ${pv===p?'selected':''}>${p}</option>`).join('')}<option value="__o" ${oo?'selected':''}>Otro…</option></select><input id="epo" placeholder="Nombre del producto" value="${esc(V('epo',ed&&!PRODE.includes(ed.producto)?ed.producto:''))}" style="display:${oo?'block':'none'};margin-top:6px"><div class="hint" id="eoh" style="display:${oo?'block':'none'}">Mayúsculas, tildes y espacios no importan para el conteo.</div></div>
+ <div><label>Producto *</label><select id="ep">${PRODE.map(p=>`<option ${pv===p?'selected':''}>${p}</option>`).join('')}<option value="__o" ${oo?'selected':''}>Otro…</option></select><input id="epoC" placeholder="Código / PLU (opcional)" inputmode="numeric" value="${esc(V('epoC',''))}" style="display:${oo?'block':'none'};margin-top:6px"><input id="epo" placeholder="Nombre del producto" value="${esc(V('epo',ed&&!PRODE.includes(ed.producto)?ed.producto:''))}" style="display:${oo?'block':'none'};margin-top:6px"><div class="hint" id="eoh" style="display:${oo?'block':'none'}">Si tiene código / PLU, escribilo (opcional). El producto queda guardado en la lista para las próximas cargas.</div></div>
  <div><label>Proveedor / frigorífico *</label><input id="epv" list="provs" placeholder="Ej: Frigorífico X" value="${esc(V('epv',ed?ed.proveedor:''))}"><datalist id="provs">${provs.map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div>
  <div><label>Fecha de recepción *</label><input type="date" id="efr" value="${esc(V('efr',ed?ed.f_recepcion:today()))}"></div>
  <div><label>Fecha de vencimiento *</label><input type="date" id="efv" value="${esc(V('efv',ed?ed.f_vencimiento:''))}"></div>
  <div><label>Cantidad (unidades) *</label><input type="number" step="any" inputmode="decimal" id="eq" value="${esc(V('eq',ed?ed.cantidad:''))}"></div>
  <div><label>Peso total (Kg) *</label><input type="number" step="any" inputmode="decimal" id="ekg" value="${esc(V('ekg',ed?ed.peso:''))}"></div>
- <div style="grid-column:1/-1"><label>Observaciones (opcional)</label><textarea id="eob" placeholder="Ej: faltaron 2 unidades del remito">${esc(V('eob',ed?ed.observaciones||'':''))}</textarea></div></div>
+ <div style="grid-column:1/-1"><label>Observaciones (solo si detectás un desvío de calidad del envase)</label><textarea id="eob" placeholder="Ej: envase roto, flojo o sin vacío, etiqueta ilegible…">${esc(V('eob',ed?ed.observaciones||'':''))}</textarea><div class="hint">Completar solo si el envase tiene un desvío de calidad. Gestionar el reclamo con el área de Compras.</div></div></div><div id="alE"></div>
  <br><button class="btn">${ed?'💾 Guardar cambios':'+ Guardar registro'}</button> ${ed?'<button type="button" class="btn o" id="cxE">Cancelar</button>':''}<div class="err" id="feE"></div>${user.role==='suc'?'<div class="hint" style="margin-top:10px">⚠ Revisá bien antes de guardar: una vez guardado, solo Calidad puede corregirlo.</div>':''}</form>
  <div class="card auto"><h2>Análisis automático</h2><div><span>Días hasta el vencimiento</span><b id="e1">-</b></div><div><span>Resultado</span><b id="e2">-</b></div>
  <div class="hint" style="margin-top:12px"><span class="dot" style="background:var(--ok)"></span>15 días o más hasta el vencimiento → Conforme<br><span class="dot" style="background:var(--nc)"></span>Menos de 15 días → No conforme</div></div></div>`}
 function bindFormE(){const g=id=>$('#'+id).value,p=$('#ep');
  if($('#resp'))$('#resp').oninput=e=>{resp=e.target.value;SSt.setItem('r',resp)};
  ['input','change'].forEach(ev=>$('#fE').addEventListener(ev,saveDrE));
- p.onchange=()=>{$('#epo').style.display=$('#eoh').style.display=p.value==='__o'?'block':'none'};
+ p.onchange=()=>{$('#epo').style.display=$('#epoC').style.display=$('#eoh').style.display=p.value==='__o'?'block':'none'};
  if($('#cxE'))$('#cxE').onclick=()=>{editE=null;clrDrE();render()};
- const live=()=>{const fr=g('efr'),fv=g('efv');if(fr&&fv){const r=calcE({f_recepcion:fr,f_vencimiento:fv});$('#e1').innerHTML=`<span class="tag ${r.v15?'nc':'ok'}">${r.dv} días${r.v15?' ⚠':''}</span>`;$('#e2').innerHTML=`<span class="tag ${r.v15?'nc':'ok'}">${r.dv<0?'Vencido · No conforme':r.v15?'No conforme':'Conforme'}</span>`}else{$('#e1').textContent=$('#e2').textContent='-'}};
+ const live=()=>{const fr=g('efr'),fv=g('efv');$('#alE').innerHTML='';if(fr&&fv){const r=calcE({f_recepcion:fr,f_vencimiento:fv});if(r.v15&&user.role==='suc')$('#alE').innerHTML=alerta([`El producto ${r.dv<0?'ya está vencido':'vence en '+r.dv+' días'} (menos de 15). <b>Dar aviso al área de Planificación.</b>`]);$('#e1').innerHTML=`<span class="tag ${r.v15?'nc':'ok'}">${r.dv} días${r.v15?' ⚠':''}</span>`;$('#e2').innerHTML=`<span class="tag ${r.v15?'nc':'ok'}">${r.dv<0?'Vencido · No conforme':r.v15?'No conforme':'Conforme'}</span>`}else{$('#e1').textContent=$('#e2').textContent='-'}};
  ['efr','efv'].forEach(i=>$('#'+i).addEventListener('input',live));live();
- $('#fE').onsubmit=e=>{e.preventDefault();resp=$('#resp').value.trim();SSt.setItem('r',resp);const fe=$('#feE'),prod=p.value==='__o'?pnameL(g('epo'),PRODE):p.value,prov=(x=>allE().map(r=>r.proveedor).find(y=>y&&norm(y)===norm(x))||x)(clean(g('epv')));
+ $('#fE').onsubmit=e=>{e.preventDefault();resp=$('#resp').value.trim();SSt.setItem('r',resp);const fe=$('#feE'),prod=p.value==='__o'?otroProd('e',g('epo'),g('epoC')):p.value,prov=(x=>allE().map(r=>r.proveedor).find(y=>y&&norm(y)===norm(x))||x)(clean(g('epv')));
   if(!resp){fe.textContent=user.role==='cal'?'Completá tu nombre (quién modifica)':'Completá el responsable de la carga';return}
   if(!prod){fe.textContent='Completá el producto';return}
   if(!prov){fe.textContent='Completá el proveedor';return}
@@ -357,7 +371,7 @@ function bindFormE(){const g=id=>$('#'+id).value,p=$('#ep');
   const prev=editE?allE().find(x=>x.id===editE):null,id=editE||uid();
   const r={id,sucursal:prev?prev.sucursal:user.n,responsable:prev?prev.responsable:resp,producto:prod,proveedor:prov,f_recepcion:g('efr'),f_vencimiento:g('efv'),cantidad:+g('eq'),peso:+g('ekg'),observaciones:clean(g('eob'))||null,created_at:(prev&&prev.created_at)||new Date().toISOString(),historial:prev?hist(prev):[]};
   if(prev){const ch=difsE(prev,r);if(!ch.length){msg='No hubo cambios para guardar';msgT=Date.now();editE=null;clrDrE();render();return}r.historial=[...hist(prev),{u:user.role==='cal'?resp+' (Calidad)':resp,t:new Date().toISOString(),c:ch}]}
-  encReg(r.sucursal,r.f_recepcion,prev&&prev.f_recepcion);LS('qe',[...(LS('qe')||[]).filter(x=>x.id!==id),r]);msg=editE?'Cambios guardados':'Registro guardado';msgT=Date.now();editE=null;clrDrE();sync(true)}}
+  encReg(r.sucursal,r.f_recepcion,prev&&prev.f_recepcion);LS('qe',[...(LS('qe')||[]).filter(x=>x.id!==id),r]);msg=editE?'Cambios guardados':'Registro guardado'+(calcE(r).v15&&user.role==='suc'?' · ⚠ Recordá dar aviso al área de Planificación':'');msgT=Date.now();editE=null;clrDrE();sync(true)}}
 function viewSucE(){const h=allE().filter(esHoy);
  return head(`${user.n} · Envasados al vacío`)+`<main>${tabs()}
  <div class="card"><label>Responsable de la carga *</label><input id="resp" value="${esc(resp)}" placeholder="Nombre y apellido"></div>
@@ -404,8 +418,20 @@ function excelE(wb,l,suc,mes){const s=statsE(l),f1=v=>+(+v).toFixed(1);
  const w2=XLSX.utils.aoa_to_sheet(R);w2['!cols']=[42,14,12,12,16,14].map(w=>({wch:w}));
  XLSX.utils.book_append_sheet(wb,ws,'Envasados');XLSX.utils.book_append_sheet(wb,w2,'Resumen envasados')}
 // ---------- Achuras ----------
-const PRA=['Hígado','Riñón','Rabo','Lengua','Chinchulines','Molleja','Centro entraña','Mondongo','Sesos','Corazón','Quijada'];
-const CART={m:['Hígado','Corazón','Sesos'],j:['Hígado','Corazón','Riñón','Molleja','Chinchulines','Sesos']};
+const PRA=['00012 - RABO','03530 - HIGADO','03531 - RIÑON','03532 - LENGUA','03533 - CHINCHULINES','03534 - MOLLEJA','03541 - SESOS','03543 - CORAZON'],PRA_B=[...PRA];
+// ---------- Catálogo de productos agregados con "Otro…" (compartido entre sucursales) ----------
+let CAT=[],errP='';
+const catOf=sec=>{const B={c:PROD_B,e:PRODE_B,a:PRA_B}[sec],m=new Map();[...CAT,...(LS('qp')||[])].filter(x=>x.seccion===sec).forEach(x=>m.set(x.id,x.nombre));return[...m.values()].filter(n=>!B.some(b=>norm(sinCod(b))===norm(sinCod(n)))).sort((a,b)=>sinCod(a).localeCompare(sinCod(b),'es'))};
+function applyCat(){PROD.splice(0,PROD.length,...PROD_B,...catOf('c'));PRODE.splice(0,PRODE.length,...PRODE_B,...catOf('e'));PRA.splice(0,PRA.length,...PRA_B,...catOf('a'))}
+function otroProd(sec,name,code){name=clean(name);code=clean(code);const mm=name.match(/^(\d+)\s*-\s*(.+)$/);if(mm&&!code){code=mm[1];name=mm[2]}if(!name)return'';
+ const L={c:PROD,e:PRODE,a:PRA}[sec],B={c:PROD_B,e:PRODE_B,a:PRA_B}[sec],ex=L.find(x=>norm(sinCod(x))===norm(name))||(ALIAS[norm(name)]&&L.includes(ALIAS[norm(name)])?ALIAS[norm(name)]:null);
+ if(ex&&(B.includes(ex)||!code||/^\s*\d+\s*-/.test(ex)))return ex;
+ const nombre=code?code+' - '+name.toUpperCase():name[0].toUpperCase()+name.slice(1).toLowerCase(),id=sec+'|'+norm(name);
+ LS('qp',[...(LS('qp')||[]).filter(x=>x.id!==id),{id,seccion:sec,codigo:code||null,nombre,created_at:new Date().toISOString()}]);applyCat();return nombre}
+async function syncP(){const q=LS('qp')||[];
+ if(q.length){const r=await fetch(B+'/productos?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q)});if(!r.ok)throw new Error('Guardar: '+r.status+' '+(await r.text()).slice(0,140));LS('qp',[])}
+ const g=await fetch(B+'/productos?select=*&order=nombre.asc&limit=2000',{headers:HD});if(!g.ok)throw new Error('Leer: '+g.status+' '+(await g.text()).slice(0,140));CAT=await g.json();IDB.set('cat',CAT);applyCat()}
+const CART={m:['03530 - HIGADO','03543 - CORAZON','03541 - SESOS'],j:['03530 - HIGADO','03543 - CORAZON','03531 - RIÑON','03534 - MOLLEJA','03533 - CHINCHULINES','03541 - SESOS']};
 const TIPA={2:'m',4:'j',6:'s',1:'l'},TNA={m:'Ingreso martes',j:'Ingreso jueves',s:'Descarte sábado',l:'Descarte lunes'},DNA=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 const SUCS=['Independencia','Paunero','Arenales','San Martín'];
 const ACOLS=['id','sucursal','responsable','tipo','f_recepcion','producto','unidades','peso','rem_unidades','rem_peso','observaciones','created_at','historial'];
@@ -415,11 +441,11 @@ const addDs=(f,n)=>{const d=new Date(f+'T12:00');d.setDate(d.getDate()+n);return
 const esIng=t=>t==='m'||t==='j',fueraCart=(t,p)=>esIng(t)&&CART.m.concat(CART.j).includes(p)&&!CART[t].includes(p);
 const CAMPOSA=[['tipo','Carga',t=>TNA[t]||t],['f_recepcion','Fecha',fd],['producto','Producto'],['unidades','Unidades',n1],['peso','Peso (Kg)',n1],['rem_unidades','Quedaba del martes (u)',n1],['rem_peso','Quedaba del martes (Kg)',n1],['observaciones','Observaciones']];
 const difsA=(a,b)=>CAMPOSA.filter(([k,,f])=>f===n1?+(a[k]||0)!==+(b[k]||0):String(a[k]??'')!==String(b[k]??'')).map(([k,l,f])=>[l,f?f(a[k]??0):String(a[k]||'-'),f?f(b[k]??0):String(b[k]||'-')]);
-const AFF=['aP','aPo','aU','aK','aRu','aRk','aOb','aT','aF'];
+const AFF=['aP','aPo','aPoC','aU','aK','aRu','aRk','aOb','aT','aF'];
 const getDrA=()=>user?LS('dra_'+user.n):null,clrDrA=()=>{if(user)LS('dra_'+user.n,null)};
 const saveDrA=()=>{if(!user||!$('#fA'))return;const f={};AFF.forEach(k=>{const e=$('#'+k);if(e)f[k]=e.value});LS('dra_'+user.n,{id:editA||'',f})};
 function allA(){const m=new Map();[...gcA(),...(LS('qa')||[])].forEach(r=>m.set(r.id,r));const dl=LS('qda')||[];let l=[...m.values()].filter(r=>!dl.includes(r.id));if(user.role==='suc')l=l.filter(r=>r.sucursal===user.n);
- return l.map(r=>({...r,fc:fueraCart(r.tipo,r.producto)})).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))}
+ return l.map(r=>{const p=pnameL(r.producto,PRA);return{...r,producto:p,fc:fueraCart(r.tipo,p)}}).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))}
 async function syncA(){const dd=LS('qda')||[];
  if(dd.length){const r=await fetch(B+'/achuras?id=in.('+dd.join(',')+')',{method:'DELETE',headers:HD});if(!r.ok)throw new Error('Borrar: '+r.status+' '+(await r.text()).slice(0,140));LS('qda',[]);scA(gcA().filter(x=>!dd.includes(x.id)))}
  const q=LS('qa')||[];
@@ -442,28 +468,28 @@ function formA(ed){const cal=user.role==='cal',d=getDrA(),D=d&&d.id===(ed?ed.id:
  const pv0=ed?((opts.includes(ed.producto))?ed.producto:'__o'):(opts[0]||'__o'),pv=V('aP',pv0),oo=pv==='__o';
  return `<div class="grid two"><form class="card" id="fA"><h2>${ed?'Editar achura · '+esc(ed.sucursal):TNA[t]+' · Achuras'}</h2>${!cal&&gm()?`<div class="off" style="margin-bottom:12px">${gm()}</div>`:''}<div class="grid">
  ${cal&&ed?`<div><label>Carga</label><select id="aT">${Object.keys(TNA).map(k=>`<option value="${k}" ${t===k?'selected':''}>${TNA[k]}</option>`).join('')}</select></div><div><label>Fecha</label><input type="date" id="aF" value="${esc(f)}"></div>`:''}
- <div><label>Producto *</label><select id="aP">${opts.map(p=>`<option ${pv===p?'selected':''}>${esc(p)}</option>`).join('')}<option value="__o" ${oo?'selected':''}>Otro…</option></select><input id="aPo" placeholder="Nombre del producto" value="${esc(V('aPo',ed&&!opts.includes(ed.producto)?ed.producto:''))}" style="display:${oo?'block':'none'};margin-top:6px"></div>
+ <div><label>Producto *</label><select id="aP">${opts.map(p=>`<option ${pv===p?'selected':''}>${esc(p)}</option>`).join('')}<option value="__o" ${oo?'selected':''}>Otro…</option></select><input id="aPoC" placeholder="Código / PLU (opcional)" inputmode="numeric" value="${esc(V('aPoC',''))}" style="display:${oo?'block':'none'};margin-top:6px"><input id="aPo" placeholder="Nombre del producto" value="${esc(V('aPo',ed&&!opts.includes(ed.producto)?ed.producto:''))}" style="display:${oo?'block':'none'};margin-top:6px"><div class="hint" id="aoh" style="display:${oo?'block':'none'}">Si tiene código / PLU, escribilo (opcional). El producto queda guardado en la lista para las próximas cargas.</div></div>
  ${cal&&ed?'':`<div><label>Fecha</label><input value="${fd(f)}" readonly style="background:#f1f6f2;color:var(--mu)"><div class="hint">Siempre la de hoy</div></div>`}
  <div><label>${ing?'Unidades recibidas':'Unidades descartadas'} *</label><input type="number" step="any" inputmode="numeric" id="aU" placeholder="0" value="${esc(V('aU',ed?ed.unidades:''))}"></div>
  <div><label>${ing?'Peso recibido':'Peso descartado'} [Kg] *</label><input type="number" step="any" inputmode="decimal" id="aK" placeholder="0" value="${esc(V('aK',ed?ed.peso:''))}"></div>
  ${t==='j'?`<div id="aRw" style="grid-column:1/-1"><label>¿Quedaba de este producto del martes? (opcional)</label><div class="row"><div><input type="number" step="any" inputmode="numeric" id="aRu" placeholder="Unidades" value="${esc(V('aRu',ed&&ed.rem_unidades!=null?ed.rem_unidades:''))}"></div><div><input type="number" step="any" inputmode="decimal" id="aRk" placeholder="Peso [Kg]" value="${esc(V('aRk',ed&&ed.rem_peso!=null?ed.rem_peso:''))}"></div></div><div class="hint">Se vende primero</div></div>`:''}
  ${ing?`<div style="grid-column:1/-1"><label>Observaciones (opcional)</label><input id="aOb" placeholder="Ej: el proveedor dejó 2 kg más de lo pedido" value="${esc(V('aOb',ed?ed.observaciones||'':''))}"></div>`:''}</div>
  <br><button class="btn">${ed?'💾 Guardar cambios':'+ Guardar producto'}</button> ${ed?'<button type="button" class="btn o" id="cxA">Cancelar</button>':''}<div class="err" id="feA"></div>${cal?'':'<div class="hint" style="margin-top:10px">Se carga un producto por vez. ⚠ Revisá bien antes de guardar: una vez guardado, solo Calidad puede corregirlo.</div>'}</form>
- <div class="card auto"><h2>Análisis automático</h2><section id="anA"></section></div></div>`}
+ <div class="card auto"><h2>Análisis automático</h2><section id="anA"></section><div id="alA" style="margin-top:12px"></div></div></div>`}
 function bindFormA(){const g=i=>$('#'+i)?$('#'+i).value:'',ed=editA?allA().find(r=>r.id===editA):null,cal=user.role==='cal';
  if($('#resp'))$('#resp').oninput=e=>{resp=e.target.value;SSt.setItem('r',resp)};
  ['input','change'].forEach(ev=>$('#fA').addEventListener(ev,saveDrA));
  if($('#aT'))$('#aT').onchange=()=>{saveDrA();render()};
  if($('#cxA'))$('#cxA').onclick=()=>{editA=null;clrDrA();render()};
- const tt=()=>cal&&ed?g('aT'):TIPA[dowF(today())],ff=()=>cal&&ed?g('aF'):today(),suc=ed?ed.sucursal:user.n,prod=()=>g('aP')==='__o'?pnameL(g('aPo'),PRA):g('aP');
+ const tt=()=>cal&&ed?g('aT'):TIPA[dowF(today())],ff=()=>cal&&ed?g('aF'):today(),suc=ed?ed.sucursal:user.n,prod=(fin)=>g('aP')==='__o'?(fin?otroProd('a',g('aPo'),g('aPoC')):pnameL(g('aPo'),PRA)):g('aP');
  const live=()=>{const t=tt(),p=prod(),u=+g('aU')||0,k=+g('aK')||0;let h='';
   if(t==='j'&&$('#aRw')){const enM=loteDe('j',ff(),suc).some(r=>norm(r.producto)===norm(p||''));$('#aRw').style.display=enM?'':'none'}
   if(esIng(t)){h=`<div><span>Producto</span><b>${esc(p||'-')}</b></div><div><span>Cartelería del ${t==='m'?'martes':'jueves'}</span><b>${!p?'-':fueraCart(t,p)?'<span class="tag nc">No corresponde · incumplimiento</span>':CART[t].includes(p)?'<span class="tag ok">Corresponde</span>':'<span class="tag no">Sin regla en la cartelería</span>'}</b></div><div><span>Recibido</span><b>${n1(u)} u / ${n1(k)} kg</b></div>`;
    if(t==='j'&&+g('aRk'))h+=`<div><span>Quedaba del martes</span><b><span class="tag dev">${n1(+g('aRk'))} kg · vender primero</span></b></div>`}
   else h=`<div><span>Producto</span><b>${esc(p||'-')}</b></div><div><span>Descartado</span><b><span class="tag ${k?'nc':'ok'}">${n1(u)} u / ${n1(k)} kg</span></b></div><div class="hint" style="margin-top:12px">Meta: 0 kg descartados.</div>`;
-  $('#anA').innerHTML=h};
- $('#aP').onchange=()=>{$('#aPo').style.display=g('aP')==='__o'?'block':'none';live()};['aPo','aU','aK','aRk','aRu'].forEach(i=>{if($('#'+i))$('#'+i).addEventListener('input',live)});live();
- $('#fA').onsubmit=e=>{e.preventDefault();resp=$('#resp').value.trim();SSt.setItem('r',resp);const fe=$('#feA'),t=tt(),f=ff(),p=prod();
+  $('#anA').innerHTML=h;$('#alA').innerHTML=!cal&&p&&fueraCart(t,p)?alerta(['Este producto no corresponde a hoy según la cartelería. Se registra como incumplimiento. <b>Dar aviso al área de Calidad.</b>']):''};
+ $('#aP').onchange=()=>{$('#aPo').style.display=$('#aPoC').style.display=$('#aoh').style.display=g('aP')==='__o'?'block':'none';live()};['aPo','aU','aK','aRk','aRu'].forEach(i=>{if($('#'+i))$('#'+i).addEventListener('input',live)});live();
+ $('#fA').onsubmit=e=>{e.preventDefault();resp=$('#resp').value.trim();SSt.setItem('r',resp);const fe=$('#feA'),t=tt(),f=ff(),p=prod(true);
   if(!resp){fe.textContent=cal?'Completá tu nombre (quién modifica)':'Completá el responsable de la carga';return}
   if(!t||!f){fe.textContent='Hoy no corresponde carga de achuras';return}
   if(!p){fe.textContent='Elegí o escribí el producto';return}
@@ -543,6 +569,6 @@ function excelA(wb,suc,mes){const l=filtA().slice().sort((a,b)=>a.f_recepcion.lo
   ['Producto','Recibido (u)','Recibido (Kg)','Descartado (u)','Descartado (Kg)','% descarte (Kg)'],...Object.entries(s0.P).map(([p,o])=>[p,f1(o.ru),f1(o.rk),f1(o.du),f1(o.dk),f1(o.rk?o.dk/o.rk*100:0)])];
  const w2=XLSX.utils.aoa_to_sheet(R);w2['!cols']=[42,14,14,14,14,14].map(w=>({wch:w}));
  XLSX.utils.book_append_sheet(wb,ws,'Achuras');XLSX.utils.book_append_sheet(wb,w2,'Resumen achuras')}
-async function restDr(){const de=getDrE();if(de&&de.id&&user.role==='cal')editE=de.id;const da=getDrA();if(da&&da.id&&user.role==='cal')editA=da.id;const d=getDr();if(!d)return;if(d.id&&user.role==='cal')editId=d.id;const fx=await IDB.get('df_'+user.n);if(fx&&fx.id===d.id)foto=fx.img}
-IDB.open().then(async()=>{if(user){CACHE[ck()]=(await IDB.get(ck()))||[];CACHE[ckE()]=(await IDB.get(ckE()))||[];CACHE[ckA()]=(await IDB.get(ckA()))||[];await restDr()}render();if(user)sync()});
+async function restDr(){const lr=await IDB.get('lr_'+user.n);lastRem=lr&&lr.d===today()?lr.img:null;const de=getDrE();if(de&&de.id&&user.role==='cal')editE=de.id;const da=getDrA();if(da&&da.id&&user.role==='cal')editA=da.id;const d=getDr();if(!d)return;if(d.id&&user.role==='cal')editId=d.id;const fx=await IDB.get('df_'+user.n);if(fx&&fx.id===d.id&&fx.fo)FO={ext:null,int:null,rem:null,...fx.fo}}
+IDB.open().then(async()=>{CAT=(await IDB.get('cat'))||[];applyCat();if(user){CACHE[ck()]=(await IDB.get(ck()))||[];CACHE[ckE()]=(await IDB.get(ckE()))||[];CACHE[ckA()]=(await IDB.get(ckA()))||[];await restDr()}render();if(user)sync()});
 </script></body></html>
