@@ -1,7 +1,7 @@
 // ARCHIVO DE CONFIGURACIÓN: pegá acá la URL y la clave de Supabase UNA sola vez.
 // Al actualizar index.html NO hace falta tocar este archivo. Vacío = modo solo local.
 window.CONFIG = {
-  DRIVE_URL: "https://script.google.com/macros/s/AKfycbw_26aGIwJ8WnMw9-1WUZSBx4Ys_YIbQ9zJxMecOL2RzXBy5OB1mTH_l-fD784BjK7uAQ/exec",
+  DRIVE_URL: "https://script.google.com/macros/s/AKfycbzE7Uj7Xbex9rJIWOhCj4KLTrCZuYdFJfEir5Bu2iEdmEoijFC9A-9jJ0GFYEU6YmZr9w/exec",
   SUPABASE_URL: "https://tvrgkcazgwsbntudbfsr.supabase.co",       
   SUPABASE_KEY: "sb_publishable_cyktPUcJHMaVcvSaPJcPzQ_o114cLaj",     
   USERS: {
