@@ -137,14 +137,22 @@ async function upFotos(){if(upB)return;const l=qf();if(!l.length)return;if(!(CON
   if(img){const r=await fetch(CONFIG.DRIVE_URL.trim(),{method:'POST',body:JSON.stringify({sucursal:f.suc,fecha:f.fecha,id:f.id,fid:f.fid,tipo:f.campo||'',img:img.split(',')[1]})});
    const tx=await r.text();let j;try{j=JSON.parse(tx)}catch(e){throw new Error('Drive no responde bien (revisá que el acceso sea "Cualquier persona")')}
    if(!j.ok)throw new Error('Drive: '+j.error);
-   const q=LS('q')||[],rec=q.find(x=>x.id===f.id)||gc().find(x=>x.id===f.id);
-   if(rec){const col=f.campo?FCOL[f.campo]:'foto_url';if(rec[col]&&rec[col]!==j.url)encFoto(rec[col]);LS('q',[...q.filter(x=>x.id!==f.id),{...rec,[col]:j.url}])}}
+   // v3.1: el link se guarda aparte (cola fp) y se manda solo esa columna a Supabase, así nunca se pisa con datos viejos
+   const col=f.campo?FCOL[f.campo]:'foto_url',q=LS('q')||[],iq=q.find(x=>x.id===f.id),old=(iq||gc().find(x=>x.id===f.id)||{})[col];
+   if(old&&old!==j.url)encFoto(old);
+   LS('fp',[...(LS('fp')||[]).filter(x=>!(x.id===f.id&&x.col===col)),{id:f.id,col,url:j.url}]);
+   if(iq)LS('q',[...q.filter(x=>x.id!==f.id),{...iq,[col]:j.url}]);
+   sc(gc().map(x=>x.id===f.id?{...x,[col]:j.url}:x))}
   LS('qf',qf().filter(x=>x.fid!==f.fid));IDB.del('f_'+f.fid)}}finally{upB=false}}
-async function sync(force){if(force)render();if(!CONFIG.SUPABASE_URL||!navigator.onLine||!user){if(force||!busy())render();return}
+async function upFP(){const l=LS('fp')||[];for(const p of l){const r=await fetch(B+'/recepciones?id=eq.'+encodeURIComponent(p.id),{method:'PATCH',headers:{...HD,'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({[p.col]:p.url})});if(!r.ok)throw new Error('Link foto: '+r.status+' '+(await r.text()).slice(0,140));const a=await r.json();if(Array.isArray(a)&&a.length)LS('fp',(LS('fp')||[]).filter(x=>!(x.id===p.id&&x.col===p.col&&x.url===p.url)))}}
+let synB=false,synR=false;
+async function sync(force){if(synB){synR=true;if(force)render();return}synB=true;try{await sync0(force)}finally{synB=false;if(synR){synR=false;setTimeout(()=>sync(),50)}}}
+async function sync0(force){if(force)render();if(!CONFIG.SUPABASE_URL||!navigator.onLine||!user){if(force||!busy())render();return}
  try{await upFotos();fotoErr=''}catch(e){fotoErr=(e&&e.message)||'sin respuesta'}
  try{const dd=LS('qd')||[];if(dd.length){const r=await fetch(B+'/recepciones?id=in.('+dd.join(',')+')',{method:'DELETE',headers:HD});if(!r.ok)throw new Error('Anular: '+r.status+' '+(await r.text()).slice(0,140));LS('qd',[]);sc(gc().filter(x=>!dd.includes(x.id)))}
   const q=LS('q')||[];
   if(q.length){const r=await fetch(B+'/recepciones?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q.map(fullRow))});if(!r.ok){const tx=await r.text();throw new Error(/proveedor/.test(tx)?'falta agregar la columna "proveedor" en Supabase':'Guardar: '+r.status+' '+tx.slice(0,140))}LS('q',[])}
+  await upFP();
   const f=user.role==='suc'?'&sucursal=eq.'+encodeURIComponent(user.n):'';
   const full=Date.now()-lastFull>6e5||!gc().length,rows=await pull(f,full);sc(full?rows:mergeRows(gc(),rows));if(full)lastFull=Date.now();syncErr=false;syncMsg='';lastSync=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}catch(e){syncErr=true;syncMsg=(e&&e.message)||'sin respuesta'}
  try{await syncE();errE=''}catch(e){const m=(e&&e.message)||'sin respuesta';errE=/PGRST205|42P01|does not exist|Could not find/.test(m)?'falta crear la tabla "envasados" en Supabase':m}
@@ -156,7 +164,7 @@ addEventListener('online',()=>sync());addEventListener('offline',()=>{if(user&&!
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 
-function head(sub){const pend=(LS('q')||[]).length+(LS('qe')||[]).length+(LS('qa')||[]).length,pf=qf().length;
+function head(sub){const pend=(LS('q')||[]).length+(LS('qe')||[]).length+(LS('qa')||[]).length+(LS('fp')||[]).length,pf=qf().length;
  return `<header><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj48cmVjdCB4PSI2IiB5PSI2IiB3aWR0aD0iMTA4IiBoZWlnaHQ9IjEwOCIgcng9IjI4IiBmaWxsPSIjZmZmIiBzdHJva2U9IiMxNDMwMWYiIHN0cm9rZS13aWR0aD0iOCIvPjx0ZXh0IHg9IjYwIiB5PSI1NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIEJsYWNrLEFyaWFsIiBmb250LXdlaWdodD0iOTAwIiBmb250LXNpemU9IjI0IiBmaWxsPSIjMTQzMDFmIj5DQU1QTzwvdGV4dD48dGV4dCB4PSI2MCIgeT0iODQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCBCbGFjayxBcmlhbCIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzE0MzAxZiI+VkVSREU8L3RleHQ+PC9zdmc+Cg==" alt="Campo Verde"><div><small>CAMPO VERDE</small><h1>Control de Recepción de Carnicería</h1><div style="opacity:.85;font-size:14px;margin-top:4px">${sub}</div></div><span class="sp"></span>
  <button class="vt">${vl()}</button>${user?`${!navigator.onLine?'<span class="off">Sin conexión</span>':''}${pend?`<span class="off">${pend} pendiente(s) de sincronizar</span>`:''}${qdv().length?`<span class="off">🗂 ${qdv().length} cambio(s) pendiente(s) en Drive${drvErr&&navigator.onLine?' · '+esc(drvErr):''}</span>`:''}${pf?`<span class="off">📷 ${pf} foto(s) pendiente(s) de subir${fotoErr&&navigator.onLine?' · '+esc(fotoErr):''}</span>`:''}${CONFIG.SUPABASE_URL?(syncErr&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ No se pudo sincronizar: '+esc(syncMsg)+'</span>':(errE&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Envasados: '+esc(errE)+'</span>':'')+(errA&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Achuras: '+esc(errA)+'</span>':'')+(errP&&navigator.onLine?'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Productos: '+esc(errP)+'</span>':'')+(!pend&&!pf&&lastSync?`<span class="pill">☁ Guardado en la nube ${lastSync}</span>`:'')):'<span class="off" style="background:#fbdcdb;color:#a1241f">⚠ Modo local: datos solo en este dispositivo</span>'}<span class="pill">CAR-0003 · Rev 2.0</span><button class="btn o s" id="out">Salir</button>`:''}</header>`}
 
