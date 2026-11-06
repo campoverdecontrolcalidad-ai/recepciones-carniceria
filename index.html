@@ -144,14 +144,16 @@ async function upFotos(){if(upB)return;const l=qf();if(!l.length)return;if(!(CON
    if(iq)LS('q',[...q.filter(x=>x.id!==f.id),{...iq,[col]:j.url}]);
    sc(gc().map(x=>x.id===f.id?{...x,[col]:j.url}:x))}
   LS('qf',qf().filter(x=>x.fid!==f.fid));IDB.del('f_'+f.fid)}}finally{upB=false}}
+// v3.4: después de enviar, saca de la cola SOLO lo que se envió (si mientras tanto se guardó otro registro, queda para el próximo envío)
+const qDone=(k,sent)=>{const m=new Map(sent.map(r=>[r&&r.id!=null?r.id:r,JSON.stringify(r)]));LS(k,(LS(k)||[]).filter(x=>m.get(x&&x.id!=null?x.id:x)!==JSON.stringify(x)))};
 async function upFP(){const l=LS('fp')||[];for(const p of l){const r=await fetch(B+'/recepciones?id=eq.'+encodeURIComponent(p.id),{method:'PATCH',headers:{...HD,'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({[p.col]:p.url})});if(!r.ok)throw new Error('Link foto: '+r.status+' '+(await r.text()).slice(0,140));const a=await r.json();if(Array.isArray(a)&&a.length)LS('fp',(LS('fp')||[]).filter(x=>!(x.id===p.id&&x.col===p.col&&x.url===p.url)))}}
 let synB=false,synR=false;
 async function sync(force){if(synB){synR=true;if(force)render();return}synB=true;try{await sync0(force)}finally{synB=false;if(synR){synR=false;setTimeout(()=>sync(),50)}}}
 async function sync0(force){if(force)render();if(!CONFIG.SUPABASE_URL||!navigator.onLine||!user){if(force||!busy())render();return}
  try{await upFotos();fotoErr=''}catch(e){fotoErr=(e&&e.message)||'sin respuesta'}
- try{const dd=LS('qd')||[];if(dd.length){const r=await fetch(B+'/recepciones?id=in.('+dd.join(',')+')',{method:'DELETE',headers:HD});if(!r.ok)throw new Error('Anular: '+r.status+' '+(await r.text()).slice(0,140));LS('qd',[]);sc(gc().filter(x=>!dd.includes(x.id)))}
+ try{const dd=LS('qd')||[];if(dd.length){const r=await fetch(B+'/recepciones?id=in.('+dd.join(',')+')',{method:'DELETE',headers:HD});if(!r.ok)throw new Error('Anular: '+r.status+' '+(await r.text()).slice(0,140));qDone('qd',dd);sc(gc().filter(x=>!dd.includes(x.id)))}
   const q=LS('q')||[];
-  if(q.length){const r=await fetch(B+'/recepciones?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q.map(fullRow))});if(!r.ok){const tx=await r.text();throw new Error(/proveedor/.test(tx)?'falta agregar la columna "proveedor" en Supabase':'Guardar: '+r.status+' '+tx.slice(0,140))}LS('q',[])}
+  if(q.length){const r=await fetch(B+'/recepciones?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q.map(fullRow))});if(!r.ok){const tx=await r.text();throw new Error(/proveedor/.test(tx)?'falta agregar la columna "proveedor" en Supabase':'Guardar: '+r.status+' '+tx.slice(0,140))}qDone('q',q)}
   await upFP();
   const f=user.role==='suc'?'&sucursal=eq.'+encodeURIComponent(user.n):'';
   const full=Date.now()-lastFull>6e5||!gc().length,rows=await pull(f,full);sc(full?rows:mergeRows(gc(),rows));if(full)lastFull=Date.now();syncErr=false;syncMsg='';lastSync=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}catch(e){syncErr=true;syncMsg=(e&&e.message)||'sin respuesta'}
@@ -345,9 +347,9 @@ function allE(){const m=new Map();[...gcE(),...(LS('qe')||[])].forEach(r=>m.set(
  return l.map(calcE).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))}
 const filtE=()=>allE().filter(r=>(!flt.from||r.f_recepcion>=flt.from)&&(!flt.to||r.f_recepcion<=flt.to)&&(!flt.suc||r.sucursal===flt.suc)&&(!fpe||r.producto===fpe));
 async function syncE(){const dd=LS('qde')||[];
- if(dd.length){const r=await fetch(B+'/envasados?id=in.('+dd.join(',')+')',{method:'DELETE',headers:HD});if(!r.ok)throw new Error('Borrar: '+r.status+' '+(await r.text()).slice(0,140));LS('qde',[]);scE(gcE().filter(x=>!dd.includes(x.id)))}
+ if(dd.length){const r=await fetch(B+'/envasados?id=in.('+dd.join(',')+')',{method:'DELETE',headers:HD});if(!r.ok)throw new Error('Borrar: '+r.status+' '+(await r.text()).slice(0,140));qDone('qde',dd);scE(gcE().filter(x=>!dd.includes(x.id)))}
  const q=LS('qe')||[];
- if(q.length){const r=await fetch(B+'/envasados?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q.map(fullE))});if(!r.ok)throw new Error('Guardar: '+r.status+' '+(await r.text()).slice(0,140));LS('qe',[])}
+ if(q.length){const r=await fetch(B+'/envasados?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q.map(fullE))});if(!r.ok)throw new Error('Guardar: '+r.status+' '+(await r.text()).slice(0,140));qDone('qe',q)}
  const f=user.role==='suc'?'&sucursal=eq.'+encodeURIComponent(user.n):'';
  const full=Date.now()-lastFullE>6e5||!gcE().length,rows=await pull(f,full,'envasados');scE(full?rows:mergeRows(gcE(),rows));if(full)lastFullE=Date.now()}
 const tagV=r=>r.dv===null?'-':`<span class="tag ${r.v15?'nc':'ok'}">${r.dv}${r.v15?' ⚠':''}</span>`;
@@ -442,7 +444,7 @@ function otroProd(sec,name,code){name=clean(name);code=clean(code);const mm=name
  const nombre=code?code+' - '+name.toUpperCase():name[0].toUpperCase()+name.slice(1).toLowerCase(),id=sec+'|'+norm(name);
  LS('qp',[...(LS('qp')||[]).filter(x=>x.id!==id),{id,seccion:sec,codigo:code||null,nombre,created_at:new Date().toISOString()}]);applyCat();return nombre}
 async function syncP(){const q=LS('qp')||[];
- if(q.length){const r=await fetch(B+'/productos?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q)});if(!r.ok)throw new Error('Guardar: '+r.status+' '+(await r.text()).slice(0,140));LS('qp',[])}
+ if(q.length){const r=await fetch(B+'/productos?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q)});if(!r.ok)throw new Error('Guardar: '+r.status+' '+(await r.text()).slice(0,140));qDone('qp',q)}
  const g=await fetch(B+'/productos?select=*&order=nombre.asc&limit=2000',{headers:HD});if(!g.ok)throw new Error('Leer: '+g.status+' '+(await g.text()).slice(0,140));CAT=await g.json();IDB.set('cat',CAT);applyCat()}
 const CART={m:['03530 - HIGADO','03543 - CORAZON','03541 - SESOS'],j:['03530 - HIGADO','03543 - CORAZON','03531 - RIÑON','03534 - MOLLEJA','03533 - CHINCHULINES','03541 - SESOS']};
 const TIPA={2:'m',4:'j'},DIAS=4,TNA={m:'Ingreso martes',j:'Ingreso jueves',x:'Ingreso fuera de término',d:'Descarte',s:'Descarte sábado',l:'Descarte lunes'},DNA=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -464,9 +466,9 @@ const saveDrA=()=>{if(!user||!$('#fA'))return;const f={};AFF.forEach(k=>{const e
 function allA(){const m=new Map();[...gcA(),...(LS('qa')||[])].forEach(r=>m.set(r.id,r));const dl=LS('qda')||[];let l=[...m.values()].filter(r=>!dl.includes(r.id));if(user.role==='suc')l=l.filter(r=>r.sucursal===user.n);
  return l.map(r=>{const p=pnameL(r.producto,PRA);return{...r,producto:p,fc:fueraCart(r.tipo,p)}}).sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''))}
 async function syncA(){const dd=LS('qda')||[];
- if(dd.length){const r=await fetch(B+'/achuras?id=in.('+dd.join(',')+')',{method:'DELETE',headers:HD});if(!r.ok)throw new Error('Borrar: '+r.status+' '+(await r.text()).slice(0,140));LS('qda',[]);scA(gcA().filter(x=>!dd.includes(x.id)))}
+ if(dd.length){const r=await fetch(B+'/achuras?id=in.('+dd.join(',')+')',{method:'DELETE',headers:HD});if(!r.ok)throw new Error('Borrar: '+r.status+' '+(await r.text()).slice(0,140));qDone('qda',dd);scA(gcA().filter(x=>!dd.includes(x.id)))}
  const q=LS('qa')||[];
- if(q.length){const r=await fetch(B+'/achuras?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q.map(fullA))});if(!r.ok)throw new Error('Guardar: '+r.status+' '+(await r.text()).slice(0,140));LS('qa',[])}
+ if(q.length){const r=await fetch(B+'/achuras?on_conflict=id',{method:'POST',headers:{...HD,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(q.map(fullA))});if(!r.ok)throw new Error('Guardar: '+r.status+' '+(await r.text()).slice(0,140));qDone('qa',q)}
  const f=user.role==='suc'?'&sucursal=eq.'+encodeURIComponent(user.n):'';
  const full=Date.now()-lastFullA>6e5||!gcA().length,rows=await pull(f,full,'achuras');scA(full?rows:mergeRows(gcA(),rows));if(full)lastFullA=Date.now()}
 // lote al que corresponde una carga (remanente del jueves y descartes)
